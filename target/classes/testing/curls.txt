@@ -1,0 +1,10 @@
+
+curl -X POST http://localhost:8080/deliveries/register \
+    -H "Content-Type: application/json" \
+    -d '{
+        "userName": "dmonge",
+        "password": "password",
+        "name": "Diego Monge",
+        "address": "Mexicali",
+        "phoneNumber": "6863095448"
+    }'
