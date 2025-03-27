@@ -41,7 +41,6 @@ public class BusinessContractService {
         
         if (business.getBusinessContract() == null) {
             businessContract = new BusinessContract();
-            businessContract.setBusiness(business);
             businessContract = businessContractRepository.save(businessContract);
  
         }

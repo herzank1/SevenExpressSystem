@@ -4,12 +4,15 @@
  */
 package com.monge.sevenexpress.entities;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.monge.sevenexpress.utils.OrderLogManager;
 import com.monge.sevenexpress.dto.NewOrderRequest;
 import com.monge.sevenexpress.enums.OrderStatus;
 import com.monge.sevenexpress.enums.OrderType;
 import com.monge.sevenexpress.utils.AsignationCountDown;
+import static com.monge.sevenexpress.utils.DateUtils.FORMATTER;
+import static com.monge.sevenexpress.utils.DateUtils.dateFormat;
+import com.monge.sevenexpress.utils.StringListConverter;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,8 +23,8 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.UUID;
 import lombok.Data;
@@ -35,10 +38,6 @@ import lombok.Data;
 @Table(name = "orders")  // Cambia el nombre de la tabla a "orders"
 public class Order {
 
-    @Transient
-    private static final String dateFormat = ("yyyy-MM-dd HH:mm:ss");
-    @Transient
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(dateFormat);
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -53,12 +52,10 @@ public class Order {
 
     @ManyToOne
     @JoinColumn(name = "business_id", referencedColumnName = "id")
-    @JsonManagedReference // Se serializa y maneja como la "parte principal" de la relación
     private Business business;
 
     @ManyToOne
     @JoinColumn(name = "customer_id", referencedColumnName = "id")  // Relación con Customer
-
     private Customer customer;
 
     @ManyToOne
@@ -71,15 +68,10 @@ public class Order {
     private float orderCost;
     private float deliveryCost;
 
-    @ManyToOne
-    @JoinColumn(name = "order_log_id", referencedColumnName = "id")  // Relación con OrderLog
-
-    private OrderLog orderLog;
+    @Convert(converter = StringListConverter.class)
+    private ArrayList<String> orderLog;
     
     @Transient
-    
-    
-  
     private boolean arrivedToBusiness;
     
     /*indicadores para ordenes a credito o fiadas
@@ -94,7 +86,6 @@ public class Order {
     private boolean payed_by_customer;
     
     @Transient
-    @JsonManagedReference // Se serializa y maneja como la "parte principal" de la relación
     AsignationCountDown asignationCountDown;
 
     public Order() {
@@ -103,7 +94,7 @@ public class Order {
 
         this.status = OrderStatus.PREPARANDO;
         this.preparationTime = 10;
-        this.orderLog = new OrderLog();
+        this.orderLog = new ArrayList<String>();
         this.asignationCountDown = new AsignationCountDown(this);
     }
 
@@ -118,7 +109,7 @@ public class Order {
         this.setOrderCost(newOrder.getOrderCost());
         this.setDeliveryCost(newOrder.getDeliveryCost());
         this.setPreparationTime(newOrder.getPreparationTime());
-         this.orderLog = new OrderLog();
+         this.orderLog = new ArrayList<String>();
          this.asignationCountDown = new AsignationCountDown(this);
 
     }

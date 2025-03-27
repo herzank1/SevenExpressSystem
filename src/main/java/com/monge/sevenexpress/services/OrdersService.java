@@ -16,6 +16,7 @@ import com.monge.sevenexpress.enums.OrderStatus;
 import static com.monge.sevenexpress.enums.OrderStatus.*;
 import static com.monge.sevenexpress.enums.OrderStatus.LISTO;
 import com.monge.sevenexpress.repositories.OrderRepository;
+import com.monge.sevenexpress.utils.OrderLogManager;
 
 /**
  *
@@ -144,7 +145,8 @@ public class OrdersService {
         }
 
         /*agregamos el registro a la orden*/
-        order.getOrderLog().addLog(cosr);
+   
+          OrderLogManager.addLog(order.getOrderLog(), cosr);
 
         return ApiResponse.success("Se ha actualizado el estado de esta orden!", order);
     }
@@ -227,7 +229,8 @@ public class OrdersService {
         /*verificar repartidor*/
         if (order.getDelivery() != null && order.getDelivery().getId().equals(dtoro.getRequesterId())) {
 
-            order.getOrderLog().addLog(dtoro);
+            OrderLogManager.addLog(order.getOrderLog(), dtoro);
+           
             if (dtoro.isTake()) {
                 order.getAsignationCountDown().take();
                 return ApiResponse.success("Repartidor a tomado la orden", order);

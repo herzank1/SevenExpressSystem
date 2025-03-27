@@ -4,13 +4,11 @@
  */
 package com.monge.sevenexpress.entities;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.monge.sevenexpress.enums.OrderType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
 import lombok.Data;
 
 /**
@@ -34,10 +32,7 @@ public class BusinessContract {
     private double maximumDebt;
     private OrderType ordersType;
 
-    @OneToOne(mappedBy = "businessContract") // Indica que es el inverso de la relación
-    @JsonBackReference // Evita que se serialice esta relación, se maneja en Business
-    private Business business;
-
+   
     
     /***
      * deaful contructor

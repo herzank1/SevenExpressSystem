@@ -60,7 +60,7 @@ public class DeliveryController {
         }
 
         List<Order> ordersByDeliveryUsername = ordersService.getOrdersByDeliveryId(delivery.getId());
-        LoggerUtils.printAsJson(ordersByDeliveryUsername);
+       // LoggerUtils.printAsJson(ordersByDeliveryUsername);
         return ResponseEntity.ok(ApiResponse.success("success", ordersByDeliveryUsername));
     }
 

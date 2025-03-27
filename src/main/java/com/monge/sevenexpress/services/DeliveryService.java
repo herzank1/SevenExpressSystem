@@ -50,13 +50,15 @@ public class DeliveryService implements ServiceCacheable<Delivery, Long> {
     @Transactional
     public BalanceAccount getBalanceAccount(Delivery delivery) {
         
-         if (delivery.getBalanceAccount() == null) {
-            BalanceAccount balanceAccount = balanceAccountService.getBalanceAccount(delivery);
+        BalanceAccount balanceAccount = delivery.getBalanceAccount();
+        
+         if (balanceAccount == null) {
+            balanceAccount = balanceAccountService.getBalanceAccount(delivery);
             delivery.setBalanceAccount(balanceAccount);
             deliveryRepository.save(delivery);
         }
 
-        return delivery.getBalanceAccount();
+        return balanceAccount;
        
     }
 

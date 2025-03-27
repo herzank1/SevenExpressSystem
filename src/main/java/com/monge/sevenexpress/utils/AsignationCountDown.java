@@ -24,7 +24,8 @@ import lombok.Data;
 public class AsignationCountDown {
 
     //referenced order
-    @JsonBackReference
+   // @JsonBackReference
+    @JsonIgnore
     Order order;
     ArrayList<Long> blackList = new ArrayList<>();
     DeliveryConfirmationStatus deliveryConfirmation;

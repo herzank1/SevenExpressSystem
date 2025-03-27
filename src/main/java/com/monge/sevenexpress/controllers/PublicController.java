@@ -41,6 +41,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @CrossOrigin("*")
 public class PublicController {
+    
+    private boolean autoEnableAccounts = true;
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -112,10 +114,14 @@ public class PublicController {
 
         // Crear el objeto de Usuario y Business
         User user = new User();
+        user.setActive(autoEnableAccounts);
         user.setUserName(brr.getUserName());
         user.setPassword(passwordEncoder.encode(brr.getPassword()));
 
         Business business = new Business();
+        if(autoEnableAccounts){
+        business.setAccountStatus(Business.AccountStatus.ACTIVADO);
+        }
         business.setBusinessName(brr.getBusinessName());
         business.setAddress(brr.getAddress());
         business.setPhoneNumber(brr.getPhoneNumber());
@@ -146,31 +152,15 @@ public class PublicController {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
             );
-            
-               // Obtener el usuario desde el contexto de seguridad
-            String username = loginRequest.getUsername();
-            User user = userService.findByUserName(username);
-
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("account not exist!"));
-            }
-
-            // Verificar si la cuenta está activa
-            if (!user.isActive()) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Your account is not activated yet."));
-            }
 
             // Si la autenticación es exitosa, generamos el JWT
             String token = jwtService.generateToken(authentication.getName(), User.Role.DELIVERY);
             System.out.println("Authorized!! token is " + token);
 
-            ApiResponse authResponse = ApiResponse.success("loggin sucess!", token);
-           // authResponse.setData(deliveryService.getByUserName(loginRequest.getUsername()));
-
-            return ResponseEntity.ok(authResponse);
+            return ResponseEntity.ok(ApiResponse.success("loggin sucess!", token));
         } catch (AuthenticationException e) {
             // Si las credenciales no son correctas
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Invalid username or password"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(e.getMessage()));
         }
     }
 
@@ -185,6 +175,7 @@ public class PublicController {
 
         // Crear el objeto de Usuario y Business
         User user = new User();
+        user.setActive(autoEnableAccounts);
         user.setUserName(drr.getUserName());
         user.setPassword(passwordEncoder.encode(drr.getPassword()));
 
@@ -192,6 +183,10 @@ public class PublicController {
         delivery.setName(drr.getName());
         delivery.setAddress(drr.getAddress());
         delivery.setPhoneNumber(drr.getPhoneNumber());
+        
+        if(autoEnableAccounts){
+        delivery.setAccountStatus(Business.AccountStatus.ACTIVADO);
+        }
 
         //creamos el balanceAccount
         // Guardar en la base de datos
@@ -261,6 +256,7 @@ public class PublicController {
 
         // Crear el objeto de Usuario y Business
         User user = new User();
+        user.setActive(autoEnableAccounts);
         user.setUserName(drr.getUserName());
         user.setPassword(passwordEncoder.encode(drr.getPassword()));
 
