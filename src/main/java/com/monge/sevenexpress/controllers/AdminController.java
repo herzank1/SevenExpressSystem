@@ -4,10 +4,7 @@
  */
 package com.monge.sevenexpress.controllers;
 
-import com.monge.sevenexpress.dto.AdminUpdateUserBusinessRequest;
 import com.monge.sevenexpress.dto.AdminOrderSetDelivery;
-import com.monge.sevenexpress.dto.AdminRefreshCache;
-import com.monge.sevenexpress.dto.AdminRefreshCache.RefreshAction;
 import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.dto.ChangeOrderStatusRequest;
 import com.monge.sevenexpress.entities.Admin;
@@ -16,19 +13,14 @@ import com.monge.sevenexpress.entities.Customer;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.Order;
 import com.monge.sevenexpress.entities.User;
-import com.monge.sevenexpress.services.AdminService;
-import com.monge.sevenexpress.services.AdminDataBaseService;
-import com.monge.sevenexpress.services.BusinessService;
-import com.monge.sevenexpress.services.CustomerService;
-import com.monge.sevenexpress.services.GoogleMapsService;
-import com.monge.sevenexpress.services.OrderAsignatorService;
-import com.monge.sevenexpress.services.OrdersService;
-import com.monge.sevenexpress.services.TokenBlacklistService;
+import com.monge.sevenexpress.entities.dto.TransferDTO;
+import com.monge.sevenexpress.services.ContabilityService;
+import com.monge.sevenexpress.services.OrdersControlService;
 import com.monge.sevenexpress.services.UserService;
+import com.monge.sevenexpress.services.UtilitiesService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -52,29 +44,15 @@ public class AdminController {
     @Autowired
     private UserService userService;
 
+   @Autowired
+    private OrdersControlService ordersControlService;
+    
     @Autowired
-    private BusinessService businessService;
+    private UtilitiesService UtilitiesService;
+    
+    @Autowired
+    private ContabilityService contabilityService;
 
-    @Autowired
-    private CustomerService customerService;
-
-    @Autowired
-    private AdminService adminService;
-
-    @Autowired
-    private OrdersService ordersService;
-
-    @Autowired
-    private TokenBlacklistService tokenBlacklistService;
-
-    @Autowired
-    private GoogleMapsService googleMapsService;
-
-    @Autowired
-    private OrderAsignatorService orderAsignatorService;
-
-    @Autowired
-    private AdminDataBaseService adminDataBaseService;
 
     /**
      * *
@@ -90,13 +68,13 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Admin admin = adminService.getByUserName(authentication.getName());
+        Admin admin = userService.getAdminByUserName(authentication.getName());
 
         if (admin == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("admin not found"));
         }
 
-        List<Order> orders = ordersService.getAllOrders();
+        List<Order> orders = ordersControlService.getAllOrders();
         return ResponseEntity.ok(ApiResponse.success("success", orders));
     }
 
@@ -112,14 +90,14 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Admin admin = adminService.getByUserName(authentication.getName());
+        Admin admin = userService.getAdminByUserName(authentication.getName());
 
         return ResponseEntity.ok(ApiResponse.success("your business account", admin));
     }
 
     @GetMapping("/deliveries")
     public ResponseEntity<ApiResponse> getDeliveries() {
-        return ResponseEntity.ok(ApiResponse.success("sucess", orderAsignatorService.getDeliveryService().getConectedDeliveries()));
+        return ResponseEntity.ok(ApiResponse.success("sucess", ordersControlService.getConectedDeliveries()));
 
     }
 
@@ -129,7 +107,7 @@ public class AdminController {
             token = token.substring(7); // Quitamos "Bearer " del token
         }
 
-        tokenBlacklistService.addToBlacklist(token);
+        UtilitiesService.getTokenBlacklistService().addToBlacklist(token);
         return ResponseEntity.ok(ApiResponse.success("Sesión cerrada correctamente", null));
 
     }
@@ -143,10 +121,10 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Admin admin = adminService.getByUserName(authentication.getName());
+        Admin admin =userService.getAdminByUserName(authentication.getName());
         cosr.setRequester(admin);
 
-        ApiResponse result = ordersService.changeOrderStatus(cosr);
+        ApiResponse result = ordersControlService.changeOrderStatus(cosr);
         return ResponseEntity.ok(result);
 
     }
@@ -160,17 +138,17 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Admin admin = adminService.getByUserName(authentication.getName());
+        Admin admin = userService.getAdminByUserName(authentication.getName());
         aosd.setRequester(admin);
 
-        ApiResponse result = ordersService.orderSetDelivery(aosd);
+        ApiResponse result = ordersControlService.orderSetDelivery(aosd);
         return ResponseEntity.ok(result);
 
     }
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse> getCustomerByPhone(@RequestParam("phone") String phone) {
-        Customer customer = customerService.findByPhoneNumber(phone);
+        Customer customer = userService.getCustomerService().findByPhoneNumber(phone);
         if (customer == null) {
             return ResponseEntity.badRequest().body(
                     ApiResponse.error("No se encontro este cliente."));
@@ -204,7 +182,7 @@ public class AdminController {
         }
 
         // Buscar si el cliente ya existe por phoneNumber
-        Customer existingCustomerOpt = customerService.findByPhoneNumber(cleanedPhoneNumber);
+        Customer existingCustomerOpt = userService.getCustomerService().findByPhoneNumber(cleanedPhoneNumber);
 
         Customer savedCustomer;
         if (existingCustomerOpt != null) {
@@ -214,11 +192,11 @@ public class AdminController {
             existingCustomer.setAddress(customer.getAddress());
             existingCustomer.setPosition(customer.getPosition());
 
-            savedCustomer = customerService.save(existingCustomer);
+            savedCustomer = userService.getCustomerService().save(existingCustomer);
         } else {
             // Si no existe, registrar uno nuevo
             customer.setPhoneNumber(cleanedPhoneNumber); // Guardar el número limpio
-            savedCustomer = customerService.save(customer);
+            savedCustomer = userService.getCustomerService().save(customer);
         }
 
         // Retornar la respuesta con el cliente en formato JSON
@@ -229,7 +207,7 @@ public class AdminController {
     @Cacheable(value = "suggestions", key = "#input", unless = "#result == null || #result.body.data.isEmpty()")
     @GetMapping("/getSuggestions")
     public ResponseEntity<ApiResponse> getSuggestions(@RequestParam String input) {
-        List<String> suggestions = googleMapsService.getSuggestions(input);
+        List<String> suggestions = UtilitiesService.getGoogleMapsService().getSuggestions(input);
         return ResponseEntity.ok(ApiResponse.success("Sugerencias", suggestions));
     }
 
@@ -237,7 +215,7 @@ public class AdminController {
     @Cacheable(value = "addressToPosition", key = "#address", unless = "#result == null || #result.body.data == null")
     @GetMapping("/addressToPosition")
     public ResponseEntity<ApiResponse> addressToPosition(@RequestParam String address) {
-        String coordinates = googleMapsService.addressToPosition(address);
+        String coordinates = UtilitiesService.getGoogleMapsService().addressToPosition(address);
         if (coordinates != null) {
             return ResponseEntity.ok(ApiResponse.success("Coordenadas", coordinates));
         } else {
@@ -249,8 +227,8 @@ public class AdminController {
     @GetMapping("/systemStatus")
     public ResponseEntity<ApiResponse> systemStatus() {
 
-        long inProcessOrders = orderAsignatorService.getOrdersService().getInProcessOrders().count();
-        long connectedDeliveries = orderAsignatorService.getDeliveryService().getConectedDeliveries().size();
+        long inProcessOrders = ordersControlService.getInProcessOrders().size();
+        long connectedDeliveries = userService.getDeliveryService().getConectedDeliveries().size();
 
         // Calcular la capacidad total de los repartidores (3 órdenes por repartidor)
         long totalCapacity = connectedDeliveries * 3;
@@ -268,55 +246,8 @@ public class AdminController {
 
     }
 
-    @PostMapping("/updateUserBusinessData")
-    @Deprecated
-    public ResponseEntity<?> activateUser(@RequestBody AdminUpdateUserBusinessRequest request) {
 
-        // Buscar al usuario por su ID
-        User findByUserName = userService.findByUserName(request.getUserName());
-        if (findByUserName == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("User not found."));
-        }
 
-        // Activar la cuenta del usuario
-        findByUserName.setActive(true);
-        userService.save(findByUserName);
-
-        return ResponseEntity.ok(ApiResponse.success("User activated successfully.", true));
-    }
-
-    @Deprecated
-    @PostMapping("/refreshCache")
-    public ResponseEntity<?> refreshCache(@RequestBody AdminRefreshCache request) {
-
-        Optional.ofNullable(request.getId()).ifPresent(id -> {
-            switch (request.getRefreshAction()) {
-
-                case RefreshAction.USER:
-                    userService.removeFromCache(request.getId());
-
-                    break;
-
-                case RefreshAction.BUSINESS:
-                    businessService.removeFromCache(request.getId());
-
-                    break;
-
-                case RefreshAction.ADMIN:
-                    adminService.removeFromCache(request.getId());
-
-                    break;
-
-                case RefreshAction.DELIVERY:
-
-                    orderAsignatorService.getDeliveryService().removeFromCache(id);
-                    break;
-
-            }
-        });
-
-        return ResponseEntity.ok(ApiResponse.success("User activated successfully.", true));
-    }
 
     @PostMapping("/updateEntity")
     public ResponseEntity<ApiResponse> updateEntity(@RequestParam String entityName, @RequestBody Object entity) {
@@ -330,12 +261,31 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Invalid entity type."));
         }
 
-        return adminDataBaseService.updateEntity(entity, entityName);
+        return userService.updateEntity(entity, entityName);
     }
 
     @GetMapping("/getEntityList")
     public ResponseEntity<ApiResponse> getEntityList(@RequestParam String entityName) {
-        return adminDataBaseService.getEntityList(entityName);
+        return userService.getEntityList(entityName);
     }
+    
+    @PostMapping("/transaction")
+    public ResponseEntity<ApiResponse>createTransaction(@RequestBody TransferDTO transaction){
+        
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
+        }
+
+       // Admin admin = userService.getAdminByUserName(authentication.getName());
+        
+       transaction = contabilityService.executeTransferDTO(transaction);
+       
+       return ResponseEntity.ok(ApiResponse.success("transaction executed!", transaction));
+    
+    }
+    
 
 }
