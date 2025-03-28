@@ -55,6 +55,7 @@ public class Delivery {
 
     public Delivery() {
         this.accountStatus = Business.AccountStatus.ACTIVADO;
+         this.balanceAccount = new BalanceAccount();
     }
     
     

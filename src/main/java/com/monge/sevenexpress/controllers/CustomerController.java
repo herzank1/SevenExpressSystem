@@ -4,7 +4,7 @@
  */
 package com.monge.sevenexpress.controllers;
 
-import com.monge.sevenexpress.services.CustomerService;
+import com.monge.sevenexpress.subservices.CustomerService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 

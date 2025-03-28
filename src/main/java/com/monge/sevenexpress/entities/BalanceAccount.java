@@ -4,6 +4,8 @@
  */
 package com.monge.sevenexpress.entities;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,6 +18,7 @@ import lombok.Data;
  */
 @Entity
 @Data
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class BalanceAccount {
 
     @Id
@@ -23,6 +26,12 @@ public class BalanceAccount {
     private Long id;
 
     private double balance; // Saldo de la cuenta
+
+    public BalanceAccount() {
+        this.balance = 0;
+    }
+    
+    
 
     public void sub(double amount) {
         balance -= amount;

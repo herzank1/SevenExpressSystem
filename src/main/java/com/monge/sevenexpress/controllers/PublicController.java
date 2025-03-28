@@ -12,11 +12,11 @@ import com.monge.sevenexpress.entities.Admin;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.User;
-import com.monge.sevenexpress.services.AdminService;
-import com.monge.sevenexpress.services.BusinessService;
-import com.monge.sevenexpress.services.DeliveryService;
-import com.monge.sevenexpress.services.JwtService;
+import com.monge.sevenexpress.services.ContabilityService;
+import com.monge.sevenexpress.subservices.OrdersService;
+import com.monge.sevenexpress.subservices.JwtService;
 import com.monge.sevenexpress.services.UserService;
+import com.monge.sevenexpress.services.UtilitiesService;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -26,7 +26,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,17 +49,17 @@ public class PublicController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Autowired
+     @Autowired
     private UserService userService;
 
     @Autowired
-    private BusinessService businessService;
-
+    private OrdersService ordersService;
+    
     @Autowired
-    private DeliveryService deliveryService;
-
+    private UtilitiesService UtilitiesService;
+    
     @Autowired
-    private AdminService adminService;
+    private ContabilityService contabilityService;
 
     public PublicController(AuthenticationManager authenticationManager, JwtService jwtService, UserDetailsService userDetailsService) {
         this.authenticationManager = authenticationManager;
@@ -129,15 +128,11 @@ public class PublicController {
 
         //creamos el balanceAccount
         // Guardar en la base de datos
-        businessService.save(business);
+        userService.getBusinessService().save(business);
         user.setAccountId(business.getId());
         user.setRole(User.Role.BUSINESS);
         userService.save(user);
 
-        /*creamos el balance account*/
-        businessService.getBalanceAccount(business);
-        /*creamos el business account*/
-        businessService.getBusinessContract(business);
        
 
         // Responder con un mensaje de éxito
@@ -190,13 +185,11 @@ public class PublicController {
 
         //creamos el balanceAccount
         // Guardar en la base de datos
-        deliveryService.save(delivery);
+        userService.getDeliveryService().save(delivery);
         user.setAccountId(delivery.getId());
         user.setRole(User.Role.DELIVERY);
         userService.save(user);
 
-        /*creamos el balance account*/
-        deliveryService.getBalanceAccount(delivery);
 
         // Responder con un mensaje de éxito
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -267,7 +260,7 @@ public class PublicController {
 
         //creamos el balanceAccount
         // Guardar en la base de datos
-        adminService.save(admin);
+      userService.getAdminService().save(admin);
         user.setAccountId(admin.getId());
         user.setRole(User.Role.ADMIN);
         userService.save(user);

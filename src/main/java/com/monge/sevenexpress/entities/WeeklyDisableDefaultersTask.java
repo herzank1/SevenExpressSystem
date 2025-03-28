@@ -13,22 +13,25 @@ import lombok.EqualsAndHashCode;
 /**
  *
  * @author DeliveryExpress
+ * Desabilita a morosos
  */
 @Data
 @EqualsAndHashCode(callSuper=false) 
 @Entity
-public class WeeklyCuotaTask extends AbstractTask{
+public class WeeklyDisableDefaultersTask extends AbstractTask{
 
-    public WeeklyCuotaTask(LocalDateTime now) {
+    public WeeklyDisableDefaultersTask(LocalDateTime now) {
         super.setExecutionDate(now);
     }
 
-    public void setTotalCharged(double totalCharged) {
-    super.getData().put("totalCharge", totalCharged);
+    /*deuda total*/
+    public void setTotalDeb(double totalDeb) {
+    super.getData().put("totalDeb", totalDeb);
     }
 
-    public void setTotalBusinesess(double totalBusinessCharged) {
-    super.getData().put("totalBusinessCharged", totalBusinessCharged);
+    /*todal de negocios inhabilitados*/
+    public void setTotalBusinesessDisabled(double TotalBusinesessDisabled) {
+    super.getData().put("TotalBusinesessDisabled", TotalBusinesessDisabled);
     }
     
     

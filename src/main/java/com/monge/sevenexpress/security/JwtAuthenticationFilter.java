@@ -5,8 +5,8 @@
 package com.monge.sevenexpress.security;
 
 import com.monge.sevenexpress.dto.ApiResponse;
-import com.monge.sevenexpress.services.JwtService;
-import com.monge.sevenexpress.services.TokenBlacklistService;
+import com.monge.sevenexpress.subservices.JwtService;
+import com.monge.sevenexpress.subservices.TokenBlacklistService;
 import com.monge.sevenexpress.services.UserService;
 import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.FilterChain;

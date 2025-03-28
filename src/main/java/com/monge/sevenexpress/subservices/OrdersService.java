@@ -2,8 +2,9 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package com.monge.sevenexpress.services;
+package com.monge.sevenexpress.subservices;
 
+import com.monge.sevenexpress.events.OrderDeliveredEvent;
 import com.monge.sevenexpress.dto.AdminOrderSetDelivery;
 import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.dto.ChangeOrderStatusRequest;
@@ -16,6 +17,7 @@ import com.monge.sevenexpress.enums.OrderStatus;
 import static com.monge.sevenexpress.enums.OrderStatus.*;
 import static com.monge.sevenexpress.enums.OrderStatus.LISTO;
 import com.monge.sevenexpress.repositories.OrderRepository;
+import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.utils.OrderLogManager;
 
 /**
@@ -29,19 +31,23 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+@Data
 @Service
 public class OrdersService {
+    
+    @Autowired
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     private final List<Order> currentOrders = Collections.synchronizedList(new CopyOnWriteArrayList<>());
 
     @Autowired
     private OrderRepository orderRepository;
-    
-     @Autowired
-    private BusinessService businessService;
+
 
     public void addOrder(Order order) {
         if (order.getBusiness() == null) {
@@ -90,10 +96,10 @@ public class OrdersService {
     }
     
     
-    public Stream<Order> getInProcessOrders() {
+    public List<Order> getInProcessOrders() {
     return currentOrders.stream()
             .filter(order -> order.getStatus() != OrderStatus.ENTREGADO && order.getStatus() != OrderStatus.CANCELADO)
-            ;
+            .collect(Collectors.toList());
 }
 
     public int getDeliveryOrderCount(Delivery delivery) {
@@ -204,7 +210,7 @@ public class OrdersService {
             //case EN_DOMICILIO:
             case ENTREGADO:
                 /*cargar servicio a negocio o pagar al delivery*/
-                businessService.executeContractPostOrderDelivered(order);
+                executeContractPostOrderDelivered(order);
                 orderRepository.save(order);
                 return true;
 
@@ -217,6 +223,13 @@ public class OrdersService {
         }
 
     }
+    
+    public void executeContractPostOrderDelivered(Order order){
+        OrderDeliveredEvent event = new OrderDeliveredEvent(this, order);
+        applicationEventPublisher.publishEvent(event);
+    }
+    
+    
 
     public ApiResponse takerOrRejectOrderByDelivery(DeliveryTakeOrRejectOrder dtoro) {
 

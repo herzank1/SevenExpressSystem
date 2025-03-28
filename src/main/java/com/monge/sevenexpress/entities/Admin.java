@@ -41,7 +41,11 @@ public class Admin {
     @JoinColumn(name = "balance_account_id", referencedColumnName = "id") // Clave foránea
     private BalanceAccount balanceAccount;
 
+    public Admin() {
+         this.balanceAccount = new BalanceAccount();
+    }
+
    
     
-
+ 
 }

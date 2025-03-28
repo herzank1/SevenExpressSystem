@@ -40,6 +40,12 @@ public class Customer {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "balance_account_id", referencedColumnName = "id") // Clave foránea
     private BalanceAccount balanceAccount;
+
+    public Customer() {
+       this.balanceAccount = new BalanceAccount();
+    }
+    
+    
     
   
 }

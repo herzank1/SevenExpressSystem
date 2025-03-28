@@ -9,30 +9,28 @@ import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.dto.BusinessQuoteRequest;
 import com.monge.sevenexpress.dto.ChangeOrderStatusRequest;
 import com.monge.sevenexpress.dto.PaymentReceiptRequest;
-import com.monge.sevenexpress.entities.BalanceAccount;
-import com.monge.sevenexpress.services.OrdersService;
+import com.monge.sevenexpress.subservices.OrdersService;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.Customer;
 import com.monge.sevenexpress.entities.Order;
 import com.monge.sevenexpress.entities.PaymentReceipt;
 import com.monge.sevenexpress.entities.Transaction;
+import com.monge.sevenexpress.entities.dto.OrderDTO;
 import com.monge.sevenexpress.enums.OrderType;
-import com.monge.sevenexpress.services.BusinessService;
-import com.monge.sevenexpress.services.CustomerService;
-import com.monge.sevenexpress.services.GoogleMapsService;
-import com.monge.sevenexpress.services.OrderAsignatorService;
-import com.monge.sevenexpress.services.PaymentReceiptService;
-import com.monge.sevenexpress.services.TokenBlacklistService;
+import com.monge.sevenexpress.services.ContabilityService;
+import com.monge.sevenexpress.services.OrdersControlService;
+import com.monge.sevenexpress.services.UserService;
+import com.monge.sevenexpress.services.UtilitiesService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -48,26 +46,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/business") // Prefijo para todas las rutas
 public class BusinesController {
 
+   
     @Autowired
-    private BusinessService businessService;
+    private UserService userService;
 
     @Autowired
-    private CustomerService customerService;
-
+    private OrdersControlService ordersControlService;
+    
     @Autowired
-    private OrdersService ordersService;
-
+    private UtilitiesService utilitiesService;
+    
     @Autowired
-    private TokenBlacklistService tokenBlacklistService;
-
-    @Autowired
-    private GoogleMapsService googleMapsService;
-
-    @Autowired
-    private OrderAsignatorService orderAsignatorService;
-
-    @Autowired
-    private PaymentReceiptService paymentReceiptService;
+    private ContabilityService contabilityService;
 
     // Endpoint para procesar la cotización con los parámetros de dirección y posición
     @GetMapping("/quote")
@@ -79,7 +69,7 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
+        Business business = userService.getBusinessByUserName(authentication.getName());
 
         try {
             // Verificamos si el principal (usuario) está autenticado
@@ -92,7 +82,7 @@ public class BusinesController {
             bqr.setRequester(business);
 
             // Llamamos a la lógica para calcular el costo de entrega
-            double deliveryCost = businessService.calculateDeliveryCost(bqr);
+            double deliveryCost = utilitiesService.getGoogleMapsService().calculateDeliveryCost(bqr);
 
             // Regresamos una respuesta exitosa con el costo de la entrega
             return ResponseEntity.ok().body(ApiResponse.success("Costo de entrega calculado con éxito", deliveryCost));
@@ -113,14 +103,14 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
+        Business business = userService.getBusinessByUserName(authentication.getName());
 
         if (business == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Business not found"));
         }
 
-        List<Order> ordersByBusinessUsername = ordersService.getOrdersByBusinessId(business.getId());
-        return ResponseEntity.ok(ApiResponse.success("success", ordersByBusinessUsername));
+        List<Order> orders = ordersControlService.getOrdersService().getOrdersByBusinessId(business.getId());
+        return ResponseEntity.ok(ApiResponse.success("success", orders.stream().map(OrderDTO::new).collect(Collectors.toList())));
     }
 
     @PostMapping("/orders")
@@ -133,7 +123,7 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
+        Business business = userService.getBusinessByUserName(authentication.getName());
 
         if (business == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -146,7 +136,7 @@ public class BusinesController {
                     .body(ApiResponse.error("Estas " + business.getAccountStatus().name() + " no puedes enviar ordenes"));
         }
 
-        Customer customer = customerService.findByPhoneNumber(newOrder.getCustomerPhone());
+        Customer customer = userService.getCustomerService().findByPhoneNumber(newOrder.getCustomerPhone());
 
         if (customer == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -157,10 +147,10 @@ public class BusinesController {
         Order order = new Order(business, customer, newOrder);
         order.setOrderType(orderType);
 
-        ordersService.addOrder(order);
+        ordersControlService.addOrder(order);
 
         // orderRepository.save(order);
-        return ResponseEntity.ok(ApiResponse.success("Orden creada exitosamente", order));
+        return ResponseEntity.ok(ApiResponse.success("Orden creada exitosamente", new OrderDTO(order)));
     }
 
     /**
@@ -175,11 +165,8 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
+        Business business = userService.getBusinessByUserName(authentication.getName());
 
-        // Asegurar que tenga BalanceAccount y BusinessContract creados si no existen
-        businessService.getBalanceAccount(business);
-        businessService.getBusinessContract(business);
 
         return ResponseEntity.ok(ApiResponse.success("your business account", business));
     }
@@ -190,7 +177,7 @@ public class BusinesController {
             token = token.substring(7); // Quitamos "Bearer " del token
         }
 
-        tokenBlacklistService.addToBlacklist(token);
+        utilitiesService.getTokenBlacklistService().addToBlacklist(token);
         return ResponseEntity.ok(ApiResponse.success("Sesión cerrada correctamente", null));
 
     }
@@ -204,10 +191,10 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
+        Business business = userService.getBusinessByUserName(authentication.getName());
         cosr.setRequester(business);
 
-        ApiResponse result = ordersService.changeOrderStatus(cosr);
+        ApiResponse result = ordersControlService.changeOrderStatus(cosr);
         return ResponseEntity.ok(result);
 
     }
@@ -221,15 +208,15 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
+        Business business = userService.getBusinessByUserName(authentication.getName());
 
-        List<Transaction> last10Transactions = businessService.getTransactionService().getLast10Transactions(business.getId());
+        List<Transaction> last10Transactions = contabilityService.getTransactionService().getLast10Transactions(business.getId());
         return ResponseEntity.ok(ApiResponse.success("Transactions", last10Transactions));
     }
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse> getCustomerByPhone(@RequestParam("phone") String phone) {
-        Customer customer = customerService.findByPhoneNumber(phone);
+        Customer customer = userService.getCustomerService().findByPhoneNumber(phone);
         if (customer == null) {
             return ResponseEntity.badRequest().body(
                     ApiResponse.error("No se encontro este cliente."));
@@ -266,7 +253,7 @@ public class BusinesController {
         customer.setPhoneNumber(cleanedPhoneNumber);
 
         // Llamar al método merge del servicio
-        Customer savedCustomer = customerService.merge(customer);
+        Customer savedCustomer = userService.getCustomerService().merge(customer);
         // Retornar la respuesta con el cliente en formato JSON
         return ResponseEntity.ok(ApiResponse.success("customer saved!", savedCustomer));
     }
@@ -275,7 +262,7 @@ public class BusinesController {
     @Cacheable(value = "suggestions", key = "#input", unless = "#result == null || #result.body.data.isEmpty()")
     @GetMapping("/getSuggestions")
     public ResponseEntity<ApiResponse> getSuggestions(@RequestParam String input) {
-        List<String> suggestions = googleMapsService.getSuggestions(input);
+        List<String> suggestions = utilitiesService.getGoogleMapsService().getSuggestions(input);
         return ResponseEntity.ok(ApiResponse.success("Sugerencias", suggestions));
     }
 
@@ -283,7 +270,7 @@ public class BusinesController {
     @Cacheable(value = "addressToPosition", key = "#address", unless = "#result == null || #result.body.data == null")
     @GetMapping("/addressToPosition")
     public ResponseEntity<ApiResponse> addressToPosition(@RequestParam String address) {
-        String coordinates = googleMapsService.addressToPosition(address);
+        String coordinates = utilitiesService.getGoogleMapsService().addressToPosition(address);
         if (coordinates != null) {
             return ResponseEntity.ok(ApiResponse.success("Coordenadas", coordinates));
         } else {
@@ -295,8 +282,8 @@ public class BusinesController {
     @GetMapping("/systemStatus")
     public ResponseEntity<ApiResponse> systemStatus() {
 
-        long inProcessOrders = orderAsignatorService.getOrdersService().getInProcessOrders().count();
-        long connectedDeliveries = orderAsignatorService.getDeliveryService().getConectedDeliveries().size();
+        long inProcessOrders = ordersControlService.getInProcessOrders().size();
+        long connectedDeliveries = ordersControlService.getConectedDeliveries().size();
 
         // Calcular la capacidad total de los repartidores (3 órdenes por repartidor)
         long totalCapacity = connectedDeliveries * 3;
@@ -322,18 +309,18 @@ public class BusinesController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Business business = businessService.getByUserName(authentication.getName());
-        BalanceAccount balanceAccount = businessService.getBalanceAccount(business);
+        Business business = userService.getBusinessByUserName(authentication.getName());
+        
 
         // Check if balanceAccount is null
-        if (balanceAccount == null) {
+        if (business.getBalanceAccount() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Balance account not found"));
         }
 
         request.setRequester(business);
         request.setStatus(PaymentReceipt.PaymentStatus.PENDING);
-        request.setBalanceAccountId(balanceAccount.getId());
-        PaymentReceipt receipt = paymentReceiptService.savePaymentReceipt(request);
+        request.setBalanceAccountId(business.getBalanceAccount().getId());
+        PaymentReceipt receipt = contabilityService.getPaymentReceiptService().savePaymentReceipt(request);
         return ResponseEntity.ok(ApiResponse.success("Comprobante recibido,", receipt));
     }
 

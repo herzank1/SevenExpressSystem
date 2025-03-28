@@ -4,6 +4,9 @@
  */
 package com.monge.sevenexpress.entities;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.monge.sevenexpress.utils.StringListConverter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Convert;
@@ -15,6 +18,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import java.util.ArrayList;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  *
@@ -36,6 +41,8 @@ public class Business {
 
     public Business() {
         this.accountStatus = AccountStatus.DESACTIVADO;
+        this.balanceAccount = new BalanceAccount();
+        this.businessContract = BusinessContract.generate_perOrderService_contract();
 
     }
 
@@ -45,10 +52,12 @@ public class Business {
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "balance_account_id", referencedColumnName = "id") // Clave foránea
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private BalanceAccount balanceAccount;
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "business_contract_id", referencedColumnName = "id") // Clave foránea
+    @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private BusinessContract businessContract;
     
     

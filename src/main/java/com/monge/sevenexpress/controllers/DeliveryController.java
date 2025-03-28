@@ -10,9 +10,11 @@ import com.monge.sevenexpress.dto.DeliveryTakeOrRejectOrder;
 import com.monge.sevenexpress.dto.DeliveryUpdateLocationRequest;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.Order;
-import com.monge.sevenexpress.services.DeliveryService;
-import com.monge.sevenexpress.services.OrdersService;
-import com.monge.sevenexpress.services.TokenBlacklistService;
+import com.monge.sevenexpress.services.ContabilityService;
+import com.monge.sevenexpress.services.OrdersControlService;
+import com.monge.sevenexpress.subservices.OrdersService;
+import com.monge.sevenexpress.services.UserService;
+import com.monge.sevenexpress.services.UtilitiesService;
 import com.monge.sevenexpress.utils.LoggerUtils;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,13 +38,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class DeliveryController {
 
     @Autowired
-    private DeliveryService deliveryService;
+    private UserService userService;
 
+   @Autowired
+    private OrdersControlService ordersControlService;
+    
     @Autowired
-    private OrdersService ordersService;
-
+    private UtilitiesService UtilitiesService;
+    
     @Autowired
-    private TokenBlacklistService tokenBlacklistService;
+    private ContabilityService contabilityService;
 
     @GetMapping("/myorders")
     public ResponseEntity<ApiResponse> getMyOrders() {
@@ -53,13 +58,13 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
 
         if (delivery == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Business not found"));
         }
 
-        List<Order> ordersByDeliveryUsername = ordersService.getOrdersByDeliveryId(delivery.getId());
+        List<Order> ordersByDeliveryUsername = ordersControlService.getOrdersService().getOrdersByDeliveryId(delivery.getId());
        // LoggerUtils.printAsJson(ordersByDeliveryUsername);
         return ResponseEntity.ok(ApiResponse.success("success", ordersByDeliveryUsername));
     }
@@ -76,10 +81,8 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
 
-        // Asegurar que tenga BalanceAccount y BusinessContract creados si no existen
-        deliveryService.getBalanceAccount(delivery);
 
         return ResponseEntity.ok(ApiResponse.success("your delivery account", delivery));
     }
@@ -90,7 +93,7 @@ public class DeliveryController {
             token = token.substring(7); // Quitamos "Bearer " del token
         }
 
-        tokenBlacklistService.addToBlacklist(token);
+        UtilitiesService.getTokenBlacklistService().addToBlacklist(token);
         return ResponseEntity.ok(ApiResponse.success("Sesión cerrada correctamente", null));
 
     }
@@ -104,10 +107,10 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
         cosr.setRequester(delivery);
         
-        ApiResponse result = ordersService.changeOrderStatus(cosr);
+        ApiResponse result = ordersControlService.getOrdersService().changeOrderStatus(cosr);
         return ResponseEntity.ok(result);
 
     }
@@ -121,7 +124,7 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
         delivery.setConected(!delivery.isConected());
 
         return ResponseEntity.ok(ApiResponse.success("aceptacion de pedidos...", delivery.isConected()));
@@ -137,7 +140,7 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
 
         return ResponseEntity.ok(ApiResponse.success("aceptacion de pedidos...", delivery.isConected()));
 
@@ -152,7 +155,7 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
 
         delivery.setPosition(dulr.getPosition());
 
@@ -171,11 +174,11 @@ public class DeliveryController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
         }
 
-        Delivery delivery = deliveryService.getByUserName(authentication.getName());
+        Delivery delivery = userService.getDeliveryByUserName(authentication.getName());
 
         dtoro.setRequester(delivery);
 
-        ApiResponse result = ordersService.takerOrRejectOrderByDelivery(dtoro);
+        ApiResponse result = ordersControlService.getOrdersService().takerOrRejectOrderByDelivery(dtoro);
 
         LoggerUtils.printAsJson(result);
         return ResponseEntity.ok(result);

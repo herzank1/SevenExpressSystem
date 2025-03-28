@@ -4,14 +4,21 @@
  */
 package com.monge.sevenexpress.services;
 
+import com.monge.sevenexpress.dto.AdminOrderSetDelivery;
+import com.monge.sevenexpress.dto.ApiResponse;
+import com.monge.sevenexpress.dto.ChangeOrderStatusRequest;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.Order;
 
 import com.monge.sevenexpress.enums.OrderStatus;
+import com.monge.sevenexpress.subservices.DeliveryService;
+import com.monge.sevenexpress.subservices.GoogleMapsService;
+import com.monge.sevenexpress.subservices.OrdersService;
 import com.monge.sevenexpress.utils.LoggerUtils;
 import com.monge.sevenexpress.utils.Position;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,17 +32,17 @@ import org.springframework.stereotype.Service;
  */
 @Data
 @Service
-public class OrderAsignatorService {
+public class OrdersControlService {
 
     private final OrdersService ordersService;
     private final DeliveryService deliveryService;
     private final GoogleMapsService googleMapsService;
 
     private final int MAX_ORDER_PER_DELIVERY = 2;
-    private final double MAX_DISTANCE_FOR_PICKUP = 6;
+    private final double MAX_DISTANCE_FOR_PICKUP = 4;
 
     @Autowired
-    public OrderAsignatorService(OrdersService ordersService, DeliveryService deliveryService,
+    public OrdersControlService(OrdersService ordersService, DeliveryService deliveryService,
             GoogleMapsService googleMapsService) {
         this.ordersService = ordersService;
         this.deliveryService = deliveryService;
@@ -103,9 +110,9 @@ public class OrderAsignatorService {
     NOTA: hacer que lance una excepcion en caso de que alguno no tenga position*/
     private double calcDistanceKm(Order order, Delivery delivery) {
         try {
-            String businessPosition=null;
+            String businessPosition = null;
             if (order.getBusiness().getPosition() == null) {
-                 businessPosition = googleMapsService.addressToPosition(order.getBusiness().getAddress());
+                businessPosition = googleMapsService.addressToPosition(order.getBusiness().getAddress());
             }
 
             String deliveryPosition = delivery.getPosition();
@@ -117,6 +124,31 @@ public class OrderAsignatorService {
             return 5;//defualt distance
         }
 
+    }
+
+    public void addOrder(Order order) {
+        ordersService.addOrder(order);
+    }
+
+    public ApiResponse changeOrderStatus(ChangeOrderStatusRequest cosr) {
+        return ordersService.changeOrderStatus(cosr);
+    }
+
+    public ApiResponse orderSetDelivery(AdminOrderSetDelivery aosd) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+
+    }
+
+    public List<Order> getAllOrders() {
+        return ordersService.getAllOrders();
+    }
+
+    public List<Order> getInProcessOrders() {
+        return ordersService.getInProcessOrders();
+    }
+
+    public List<Delivery> getConectedDeliveries() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 
 }

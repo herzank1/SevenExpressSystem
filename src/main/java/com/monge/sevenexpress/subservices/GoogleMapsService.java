@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package com.monge.sevenexpress.services;
+package com.monge.sevenexpress.subservices;
 
 import com.google.maps.DistanceMatrixApi;
 import com.google.maps.GeoApiContext;
@@ -12,6 +12,7 @@ import com.google.maps.model.DistanceMatrixElement;
 import com.google.maps.model.DistanceMatrixElementStatus;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.model.TravelMode;
+import com.monge.sevenexpress.dto.BusinessQuoteRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
@@ -82,9 +83,23 @@ public class GoogleMapsService {
         }
         return new DistanceDetails(origin, destination, -1, -1); // Retorna valores -1 en caso de error
     }
+    
+     public double calculateDeliveryCost(BusinessQuoteRequest bqr) {
+            
+            DistanceDetails distanceDetails = getDistanceDetails(bqr.getAddress(),bqr.getAddress());
+
+            if (distanceDetails.getKilometers() == -1) {
+                return 50.0;
+            } else {
+          
+
+                return 40;
+            }
+
+        }
 
     @Data
-    public static class DistanceDetails {
+    public  class DistanceDetails {
 
         private String origin;
         private String destination;
@@ -98,8 +113,6 @@ public class GoogleMapsService {
             this.minutes = minutes;
         }
 
-      
-
         @Override
         public String toString() {
             return "DistanceDetails{"
@@ -109,5 +122,14 @@ public class GoogleMapsService {
                     + ", minutes=" + minutes
                     + '}';
         }
+
+        /**
+         * *
+         * esta funcion debe retornar mas infomracion hacerca de la distancia
+         *
+         * @param bqr
+         * @return
+         */
+       
     }
 }

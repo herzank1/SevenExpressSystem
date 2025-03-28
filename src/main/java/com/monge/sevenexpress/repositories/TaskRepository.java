@@ -4,14 +4,18 @@
  */
 package com.monge.sevenexpress.repositories;
 
-import com.monge.sevenexpress.entities.WeeklyTaskForNegativeBalances;
+
+import com.monge.sevenexpress.intefaces.AbstractTask;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-
+/**
+ *
+ * @author DeliveryExpress
+ */
 @Repository
-public interface  WeeklyTaskForNegativeBalancesRepository  extends JpaRepository<WeeklyTaskForNegativeBalances, Long> {
-    WeeklyTaskForNegativeBalances findTopByOrderByExecutionDateDesc();
+public interface  TaskRepository  extends JpaRepository<AbstractTask, Long> {
+    AbstractTask findTopByOrderByExecutionDateDesc();
 
     
 }

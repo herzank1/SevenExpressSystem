@@ -4,16 +4,26 @@
  */
 package com.monge.sevenexpress.services;
 
+import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.entities.Admin;
 import com.monge.sevenexpress.entities.Business;
+import com.monge.sevenexpress.entities.Customer;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.User;
 
 import com.monge.sevenexpress.repositories.UserRepository;
+import com.monge.sevenexpress.subservices.AdminService;
+import com.monge.sevenexpress.subservices.BusinessService;
+import com.monge.sevenexpress.subservices.CustomerService;
+import com.monge.sevenexpress.subservices.DeliveryService;
+import com.monge.sevenexpress.subservices.ServiceCacheable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -29,6 +39,18 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private BusinessService businessService;
+
+    @Autowired
+    private DeliveryService deliveryService;
+
+    @Autowired
+    private CustomerService customerService;
+
+    @Autowired
+    private AdminService adminService;
 
     // Caché de usuarios indexado por username
     private final Map<Long, User> usersCache = new ConcurrentHashMap<>();
@@ -132,6 +154,111 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
     @Override
     public Map<Long, User> getCache() {
         return usersCache;
+    }
+
+    public <T> ResponseEntity<ApiResponse> updateEntity(T entity, String entityName) {
+        switch (entityName) {
+            case "User":
+                return updateUser((User) entity);
+            case "Delivery":
+                return updateDelivery((Delivery) entity);
+            case "Business":
+                return updateBusiness((Business) entity);
+            case "Customer":
+                return updateCustomer((Customer) entity);
+            default:
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Unknown entity"));
+        }
+    }
+
+    private ResponseEntity<ApiResponse> updateUser(User user) {
+        userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.success("User updated successfully.", user));
+    }
+
+    private ResponseEntity<ApiResponse> updateDelivery(Delivery delivery) {
+        deliveryService.save(delivery);
+        return ResponseEntity.ok(ApiResponse.success("Delivery updated successfully.", delivery));
+    }
+
+    private ResponseEntity<ApiResponse> updateBusiness(Business business) {
+        businessService.save(business);
+        return ResponseEntity.ok(ApiResponse.success("Business updated successfully.", business));
+    }
+
+    private ResponseEntity<ApiResponse> updateCustomer(Customer customer) {
+        customerService.save(customer);
+        return ResponseEntity.ok(ApiResponse.success("Customer updated successfully.", customer));
+    }
+
+    public <T> ResponseEntity<ApiResponse> getEntityList(String entityName) {
+        switch (entityName) {
+            case "User":
+                return getUserList();
+            case "Delivery":
+                return getDeliveryList();
+            case "Business":
+                return getBusinessList();
+            case "Customer":
+                return getCustomerList();
+            default:
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Unknown entity"));
+        }
+    }
+
+    private ResponseEntity<ApiResponse> getUserList() {
+        List<User> users = userRepository.findAll();
+        return ResponseEntity.ok(ApiResponse.success("User list fetched successfully.", users));
+    }
+
+    private ResponseEntity<ApiResponse> getDeliveryList() {
+        List<Delivery> deliveries = deliveryService.getDeliveryRepository().findAll();
+        return ResponseEntity.ok(ApiResponse.success("Delivery list fetched successfully.", deliveries));
+    }
+
+    private ResponseEntity<ApiResponse> getBusinessList() {
+        List<Business> businesses = businessService.getBusinessRepository().findAll();
+        return ResponseEntity.ok(ApiResponse.success("Business list fetched successfully.", businesses));
+    }
+
+    private ResponseEntity<ApiResponse> getCustomerList() {
+        List<Customer> customers = customerService.getCustomerRepository().findAll();
+        return ResponseEntity.ok(ApiResponse.success("Customer list fetched successfully.", customers));
+    }
+
+    public Delivery getDeliveryByUserName(String userName) {
+
+        User user = findByUserName(userName);
+        if (user == null) {
+            return null;
+        }
+
+        Delivery byId = deliveryService.getById(user.getAccountId());
+        byId.setUserName(userName);
+        
+        return byId;
+
+    }
+
+    public Admin getAdminByUserName(String userName) {
+   
+        User user = findByUserName(userName);
+        if (user == null) {
+            return null;
+        }
+        
+        return adminService.getById(user.getAccountId());
+    
+    }
+
+    public Business getBusinessByUserName(String userName) {
+          User user = findByUserName(userName);
+        if (user == null) {
+            return null;
+        }
+        
+        return businessService.getById(user.getAccountId());
+    
     }
 
 }

@@ -4,6 +4,8 @@
  */
 package com.monge.sevenexpress.entities;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.monge.sevenexpress.enums.OrderType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -17,6 +19,7 @@ import lombok.Data;
  */
 @Data
 @Entity
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class BusinessContract {
 
     @Id
@@ -92,6 +95,46 @@ public class BusinessContract {
         public String toString() {
             return value;
         }
+    }
+    
+       /**
+     * *
+     *
+     * @return un contrato basico como el de delivery express
+     */
+    public static BusinessContract generate_perOrderService_contract() {
+        BusinessContract businessContract = new BusinessContract();
+        businessContract.setInsuranceType(BusinessContract.InsuranceType.NONE);
+        businessContract.setKmBase(5);
+        businessContract.setKmBaseCost(45);
+        businessContract.setKmExtraCost(8);
+        businessContract.setPaysCuota(false);
+        businessContract.setServiceType(BusinessContract.ServiceType.PER_ORDER);
+        businessContract.setServiceCost(20);
+
+        return businessContract;
+    }
+
+    /**
+     * *
+     * Generar un contrato de costo de servicio por porcentaje, con seguro y
+     * cuota
+     *
+     * @return
+     */
+    public static BusinessContract generate_percentage_ensured_cuotable_contract() {
+
+        BusinessContract businessContract = new BusinessContract();
+        businessContract.setInsuranceType(BusinessContract.InsuranceType.EXTENDED_PLUS);
+        businessContract.setKmBase(5);
+        businessContract.setKmBaseCost(45);
+        businessContract.setKmExtraCost(9);
+        businessContract.setPaysCuota(true);
+        businessContract.setServiceType(BusinessContract.ServiceType.PER_ORDER_PERCENTAGE);
+        businessContract.setServiceCost(6);
+
+        return businessContract;
+
     }
     
     
