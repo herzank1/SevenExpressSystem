@@ -59,7 +59,18 @@ public class Business {
     @JoinColumn(name = "business_contract_id", referencedColumnName = "id") // Clave foránea
     @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
     private BusinessContract businessContract;
-    
+
+   public boolean exceedsItsDebt() {
+    if (this.businessContract == null || this.balanceAccount == null) {
+        throw new IllegalStateException("BusinessContract o BalanceAccount no pueden ser null");
+    }
+
+    double maximumDebt = -Math.abs(this.businessContract.getMaximumDebt()); // Asegura que sea negativo
+    double balance = this.balanceAccount.getBalance();
+
+    return balance < maximumDebt;
+}
+
     
     public enum AccountStatus{
     //0,1,2
