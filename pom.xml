@@ -59,6 +59,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
             <version>${spring.boot.version}</version> <!-- Asegúrate de usar una versión compatible -->
         </dependency>
+        
+        <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-websocket</artifactId>
+     <version>${spring.boot.version}</version> 
+</dependency>
     
         <dependency>
             <groupId>org.springframework.boot</groupId>

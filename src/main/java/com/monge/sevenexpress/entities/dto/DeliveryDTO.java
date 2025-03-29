@@ -22,6 +22,7 @@ public class DeliveryDTO {
     private String position; // GPS
     private boolean conected;
     private String userName;
+    private BalanceAccountDTO balanceAccount;
 
     public DeliveryDTO(Delivery delivery) {
         this.id = delivery.getId();
@@ -33,6 +34,8 @@ public class DeliveryDTO {
         if (delivery.getUserName() != null) {
             this.userName = delivery.getUserName();
         }
+
+        this.balanceAccount = new BalanceAccountDTO(delivery.getBalanceAccount());
 
     }
 }

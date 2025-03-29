@@ -7,6 +7,7 @@ package com.monge.sevenexpress.subservices;
 import com.monge.sevenexpress.dto.PaymentReceiptRequest;
 import com.monge.sevenexpress.entities.PaymentReceipt;
 import com.monge.sevenexpress.repositories.PaymentReceiptRepository;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
  *
  * @author DeliveryExpress
  */
+@Data
 @Service
 public class PaymentReceiptService {
 

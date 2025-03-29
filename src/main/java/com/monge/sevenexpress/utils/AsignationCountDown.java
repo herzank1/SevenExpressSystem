@@ -40,6 +40,7 @@ public class AsignationCountDown {
 
     public AsignationCountDown(Order order) {
         this.order = order;
+        this.deliveryConfirmation = DeliveryConfirmationStatus.NONE;
     }
 
     // Inicia el temporizador

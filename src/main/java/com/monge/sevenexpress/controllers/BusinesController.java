@@ -290,6 +290,10 @@ public class BusinesController {
 
         // Calcular la puntuación de saturación
         double saturationScore = totalCapacity > 0 ? (double) inProcessOrders / totalCapacity : 0.0;
+        
+        if(connectedDeliveries==0){
+        saturationScore = 3;
+        }
 
         // Crear el HashMap con los valores
         Map<String, Object> systemStatus = new HashMap<>();

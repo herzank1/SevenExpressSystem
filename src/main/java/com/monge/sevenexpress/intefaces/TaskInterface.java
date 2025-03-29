@@ -4,6 +4,7 @@
  */
 package com.monge.sevenexpress.intefaces;
 
+import com.monge.sevenexpress.entities.Task;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
@@ -20,7 +21,7 @@ public interface TaskInterface {
 
     public abstract LocalDateTime getLastExecution();
 
-    public abstract void saveLastExecution(AbstractTask task);
+    public abstract void saveLastExecution(Task task);
 
     public default LocalDateTime getLastFridayAt(int hour, int minute) {
         LocalDateTime now = LocalDateTime.now();

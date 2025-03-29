@@ -5,19 +5,20 @@
 package com.monge.sevenexpress.services;
 
 import com.monge.sevenexpress.entities.BalanceAccount;
+import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.BusinessContract;
 import com.monge.sevenexpress.entities.Order;
+import com.monge.sevenexpress.entities.PaymentReceipt;
+import com.monge.sevenexpress.entities.PaymentReceipt.PaymentStatus;
 import com.monge.sevenexpress.entities.Transaction;
 import com.monge.sevenexpress.entities.dto.TransferDTO;
 import com.monge.sevenexpress.subservices.BalanceAccountService;
-import com.monge.sevenexpress.events.OrderDeliveredEvent;
+import com.monge.sevenexpress.events.OnOrderDeliveredEvent;
 import com.monge.sevenexpress.subservices.PaymentReceiptService;
 import com.monge.sevenexpress.subservices.TransactionService;
-import java.util.Optional;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,15 +41,6 @@ public class ContabilityService {
 
     @Autowired
     private PaymentReceiptService paymentReceiptService;
-
-    @Async
-    @EventListener
-    public void onOrderDelivered(OrderDeliveredEvent event) {
-        Order order = event.getOrder();
-        // Lógica cuando la orden ha sido entregada
-        System.out.println("Order delivered: " + order);
-        executeContractPostOrderDelivered(order);
-    }
 
     /**
      * *
@@ -129,7 +121,10 @@ public class ContabilityService {
     }
 
     @Transactional
-    public boolean executeContractPostOrderDelivered(Order order) {
+    @EventListener
+    public boolean executeContractPostOrderDelivered(OnOrderDeliveredEvent event) {
+
+        Order order = event.getOrder();
 
         BusinessContract contract = order.getBusiness().getBusinessContract();
         BalanceAccount balanceAccount = order.getBusiness().getBalanceAccount();
@@ -213,6 +208,76 @@ public class ContabilityService {
         }
 
         return transaction;
+
+    }
+
+    /**
+     * *
+     * Todos los recibos de pago son saldo positivo
+     *
+     * @param id
+     * @param status
+     * @return
+     */
+    public PaymentReceipt updatePaymentReceipt(long id, PaymentReceipt.PaymentStatus status) {
+
+        PaymentReceipt payment = paymentReceiptService.getPaymentReceiptRepository().findById(id).orElse(null);
+        if (payment == null) {
+            return null;
+        }
+
+        Business business = userService.getBusinessService().getBusinessRepository().findByBalanceAccountId(payment.getBalanceAccountId()).orElse(null);
+
+        if (business == null) {
+            return null;
+        }
+
+        BalanceAccount balAccount = business.getBalanceAccount();
+
+        boolean success = false;
+
+        switch (status) {
+
+            case PaymentStatus.PROCESSED:
+
+                /*evitamos el doble procesamiento*/
+                if (payment.getStatus() == PaymentStatus.PENDING) {
+                    balAccount.sum(payment.getAmount());
+                    balAccount = balanceAccountService.save(balAccount);
+                    transactionService.createTransaction(balAccount.getId(), payment.getAmount(), "Pago de servicios", Transaction.TransactionType.DEPOSIT);
+                    payment.setStatus(status);
+                    paymentReceiptService.getPaymentReceiptRepository().save(payment);
+
+                    onBusinessPaymentAproved(business);
+
+                    success = true;
+
+                }
+
+                break;
+
+            case PaymentStatus.REJECTED:
+                payment.setStatus(status);
+                paymentReceiptService.getPaymentReceiptRepository().save(payment);
+
+                break;
+
+            default:
+                break;
+
+        }
+
+        return payment;
+    }
+
+    public void onBusinessPaymentAproved(Business business) {
+        //userService
+
+        /*si business no excede su deuda*/
+        if (!business.exceedsItsDebt()) {
+            business.setAccountStatus(Business.AccountStatus.ACTIVADO);
+            userService.getBusinessService().save(business);
+        }
 
     }
 

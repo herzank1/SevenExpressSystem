@@ -12,6 +12,8 @@ import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.Customer;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.Order;
+import com.monge.sevenexpress.entities.PaymentReceipt;
+import com.monge.sevenexpress.entities.PaymentReceipt.PaymentStatus;
 import com.monge.sevenexpress.entities.User;
 import com.monge.sevenexpress.entities.dto.TransferDTO;
 import com.monge.sevenexpress.services.ContabilityService;
@@ -286,6 +288,21 @@ public class AdminController {
        return ResponseEntity.ok(ApiResponse.success("transaction executed!", transaction));
     
     }
+    
+    @PostMapping("/paymentReceipt")
+    public ResponseEntity<ApiResponse> updatePaymentReceipt(@RequestParam long id, @RequestParam PaymentStatus status){
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
+        }
+
+        PaymentReceipt success = contabilityService.updatePaymentReceipt(id,status);
+        
+         return ResponseEntity.ok(ApiResponse.success("resultado", success));
+        
+    }
+    
     
 
 }

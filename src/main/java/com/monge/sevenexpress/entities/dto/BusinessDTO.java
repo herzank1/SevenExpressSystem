@@ -19,6 +19,9 @@ public class BusinessDTO {
     private String phoneNumber;
     private String address;
     private String position;//GPS
+    
+    private BalanceAccountDTO balanceAccount;
+    private BusinessContractDTO businessContract;
 
     public BusinessDTO(Business business) {
         this.id = business.getId();
@@ -26,5 +29,8 @@ public class BusinessDTO {
         this.phoneNumber = business.getPhoneNumber();
         this.address = business.getAddress();
         this.position = business.getPosition();
+        this.balanceAccount = new BalanceAccountDTO(business.getBalanceAccount());
+        
+        this.businessContract = new BusinessContractDTO(business.getBusinessContract());
     }
 }

@@ -281,6 +281,13 @@ public class PublicController {
 
         // Extraer el token del encabezado
         String token = authorizationHeader.substring(7); // El prefijo "Bearer " tiene 7 caracteres
+        boolean tokenBlacklisted = UtilitiesService.getTokenBlacklistService().isTokenBlacklisted(token);
+        if(tokenBlacklisted){
+             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Invalid or expired token"));
+          
+        }
+        
+        
 
         try {
             // Verificar la validez del token

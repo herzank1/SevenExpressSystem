@@ -4,7 +4,7 @@
  */
 package com.monge.sevenexpress.subservices;
 
-import com.monge.sevenexpress.events.OrderDeliveredEvent;
+import com.monge.sevenexpress.events.OnOrderDeliveredEvent;
 import com.monge.sevenexpress.dto.AdminOrderSetDelivery;
 import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.dto.ChangeOrderStatusRequest;
@@ -210,7 +210,7 @@ public class OrdersService {
             //case EN_DOMICILIO:
             case ENTREGADO:
                 /*cargar servicio a negocio o pagar al delivery*/
-                executeContractPostOrderDelivered(order);
+                executePostOrderDelivered(order);
                 orderRepository.save(order);
                 return true;
 
@@ -224,8 +224,8 @@ public class OrdersService {
 
     }
     
-    public void executeContractPostOrderDelivered(Order order){
-        OrderDeliveredEvent event = new OrderDeliveredEvent(this, order);
+    public void executePostOrderDelivered(Order order){
+        OnOrderDeliveredEvent event = new OnOrderDeliveredEvent(this, order);
         applicationEventPublisher.publishEvent(event);
     }
     

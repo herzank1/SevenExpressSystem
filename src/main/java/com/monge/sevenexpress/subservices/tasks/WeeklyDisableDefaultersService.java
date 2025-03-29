@@ -7,10 +7,9 @@ package com.monge.sevenexpress.subservices.tasks;
 import com.monge.sevenexpress.entities.BalanceAccount;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.BusinessContract;
-import com.monge.sevenexpress.entities.WeeklyCuotaTask;
-import com.monge.sevenexpress.entities.WeeklyDisableDefaultersTask;
-import com.monge.sevenexpress.intefaces.AbstractTask;
-import com.monge.sevenexpress.intefaces.TaskInterface;
+import com.monge.sevenexpress.entities.Task;
+import com.monge.sevenexpress.entities.Task.ExecutionMode;
+import com.monge.sevenexpress.entities.Task.TaskReason;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.monge.sevenexpress.repositories.TaskRepository;
 import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.subservices.BusinessService;
+import jakarta.annotation.PostConstruct;
+import com.monge.sevenexpress.intefaces.TaskInterface;
 
 /**
  *
@@ -37,8 +38,11 @@ public class WeeklyDisableDefaultersService implements TaskInterface {
     @Autowired
     private ContabilityService contabilityService;
 
-    public WeeklyDisableDefaultersService() {
-        checkAndRunMissedTask();
+    
+    
+       @PostConstruct
+    public void init() {
+        checkAndRunMissedTask();  // ✅ Se ejecutará después de la inyección de dependencias
     }
 
     // 🔹 Se ejecuta automáticamente los viernes a las 11:00 PM
@@ -47,9 +51,9 @@ public class WeeklyDisableDefaultersService implements TaskInterface {
     @Override
     public void executeTask() {
 
-        WeeklyDisableDefaultersTask weeklyDisableDefaultersTask = new WeeklyDisableDefaultersTask(LocalDateTime.now());
-        weeklyDisableDefaultersTask.setTaskReason(AbstractTask.TaskReason.DISABLE_NEGATIVE_BALANCES);
-        weeklyDisableDefaultersTask.setExecutionMode(AbstractTask.ExecutionMode.WEEKLY);
+        Task task = new Task(LocalDateTime.now());
+        task.setTaskReason(TaskReason.DISABLE_NEGATIVE_BALANCES);
+        task.setExecutionMode(ExecutionMode.WEEKLY);
         System.out.println("✅ Ejecutando tarea programada: " + LocalDateTime.now());
 
         double totalDeb = 0;
@@ -74,10 +78,10 @@ public class WeeklyDisableDefaultersService implements TaskInterface {
 
         }
 
-        weeklyDisableDefaultersTask.setTotalBusinesessDisabled(totalBusinesessDisabled);
-        weeklyDisableDefaultersTask.setTotalDeb(totalDeb);
+        task.getData().put("totalBusinesessDisabled", totalBusinesessDisabled);
+        task.getData().put("totalDeb", totalDeb);
 
-        saveLastExecution(weeklyDisableDefaultersTask);
+        saveLastExecution(task);
     }
 
     // 🔹 Verifica al iniciar si la última ejecución fue el viernes pasado
@@ -96,13 +100,14 @@ public class WeeklyDisableDefaultersService implements TaskInterface {
 
     // 🔹 Obtiene la última ejecución desde la base de datos
     @Override
+     @Transactional
     public LocalDateTime getLastExecution() {
-        WeeklyCuotaTask lastExecution = (WeeklyCuotaTask) taskRepository.findTopByOrderByExecutionDateDesc();
+        Task lastExecution =taskRepository.findMostRecentTaskByReason(TaskReason.DISABLE_NEGATIVE_BALANCES).orElse(null);
         return lastExecution != null ? lastExecution.getExecutionDate() : null;
     }
 
     @Override
-    public void saveLastExecution(AbstractTask task) {
+    public void saveLastExecution(Task task) {
         taskRepository.save(task);
     }
 

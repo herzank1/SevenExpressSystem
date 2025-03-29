@@ -7,13 +7,11 @@ package com.monge.sevenexpress.subservices.tasks;
 import com.monge.sevenexpress.entities.BalanceAccount;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.BusinessContract;
+import com.monge.sevenexpress.entities.Task;
+import com.monge.sevenexpress.entities.Task.ExecutionMode;
+import com.monge.sevenexpress.entities.Task.TaskReason;
 import com.monge.sevenexpress.entities.Transaction;
-import com.monge.sevenexpress.entities.WeeklyCuotaTask;
-import com.monge.sevenexpress.intefaces.AbstractTask;
-import com.monge.sevenexpress.intefaces.TaskInterface;
-import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,9 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.monge.sevenexpress.repositories.TaskRepository;
 import com.monge.sevenexpress.services.ContabilityService;
-import com.monge.sevenexpress.subservices.BalanceAccountService;
 import com.monge.sevenexpress.subservices.BusinessService;
-import com.monge.sevenexpress.subservices.TransactionService;
+import jakarta.annotation.PostConstruct;
+import com.monge.sevenexpress.intefaces.TaskInterface;
 
 /**
  *
@@ -41,8 +39,9 @@ public class WeeklyCuotaTaskService implements TaskInterface {
     @Autowired
     private ContabilityService contabilityService;
 
-    public WeeklyCuotaTaskService() {
-        checkAndRunMissedTask();
+       @PostConstruct
+    public void init() {
+        checkAndRunMissedTask();  // ✅ Se ejecutará después de la inyección de dependencias
     }
 
     // 🔹 Se ejecuta automáticamente los viernes a las 11:00 PM
@@ -51,9 +50,9 @@ public class WeeklyCuotaTaskService implements TaskInterface {
     @Override
     public void executeTask() {
 
-        WeeklyCuotaTask weklyCuotaTask = new WeeklyCuotaTask(LocalDateTime.now());
-        weklyCuotaTask.setTaskReason(AbstractTask.TaskReason.CUOTA_CHARGIN);
-        weklyCuotaTask.setExecutionMode(AbstractTask.ExecutionMode.WEEKLY);
+        Task task = new Task(LocalDateTime.now());
+        task.setTaskReason(TaskReason.CUOTA_CHARGIN);
+        task.setExecutionMode(ExecutionMode.WEEKLY);
         System.out.println("✅ Ejecutando tarea programada: " + LocalDateTime.now());
 
         double totalCharged = 0;
@@ -79,10 +78,10 @@ public class WeeklyCuotaTaskService implements TaskInterface {
 
         }
 
-        weklyCuotaTask.setTotalCharged(totalCharged);
-        weklyCuotaTask.setTotalBusinesess(totalBusinessCharged);
+        task.getData().put("totalCharged",totalCharged);
+        task.getData().put("totalBusinessCharged",totalBusinessCharged);
 
-        saveLastExecution(weklyCuotaTask);
+        saveLastExecution(task);
     }
 
     // 🔹 Verifica al iniciar si la última ejecución fue el viernes pasado
@@ -101,13 +100,14 @@ public class WeeklyCuotaTaskService implements TaskInterface {
 
     // 🔹 Obtiene la última ejecución desde la base de datos
     @Override
+     @Transactional
     public LocalDateTime getLastExecution() {
-        WeeklyCuotaTask lastExecution = (WeeklyCuotaTask) taskRepository.findTopByOrderByExecutionDateDesc();
+        Task lastExecution =  taskRepository.findMostRecentTaskByReason(TaskReason.CUOTA_CHARGIN).orElse(null);
         return lastExecution != null ? lastExecution.getExecutionDate() : null;
     }
 
     @Override
-    public void saveLastExecution(AbstractTask task) {
+    public void saveLastExecution(Task task) {
         taskRepository.save(task);
     }
 

@@ -19,6 +19,8 @@ public interface BusinessRepository extends JpaRepository<Business, Long> {
 
     Optional<Business> findById(long id);
     
+    Optional<Business> findByBalanceAccountId(Long balanceAccountId);
+    
     List<Business> findAll();
 
 
