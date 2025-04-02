@@ -5,6 +5,7 @@
 package com.monge.sevenexpress.chat;
 
 import com.monge.sevenexpress.entities.dto.SendMessageDTO;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -14,19 +15,25 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Data;
 
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Data
+@Table(name = "room_messages")  // Asegúrate de que este nombre coincida con la tabla real
+
 @Entity
 public class Message {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;  // Identificador único del mensaje
-
+    @Column(name = "sender_id")  // Renombrar 'from' a 'sender_id' para evitar conflictos
     private long from;  // El ID del usuario que envía el mensaje
 
     private LocalDateTime timestamp;  // Fecha y hora de envío del mensaje
@@ -46,6 +53,10 @@ public class Message {
    
     // Constructor vacío requerido por JPA
     public Message() {}
+    
+    /*map temporal para menejar actualizaciones*/
+    @Transient
+    private Map<Long,Boolean> seentBy = new HashMap<>();
 
    
 

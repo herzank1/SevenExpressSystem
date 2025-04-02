@@ -40,6 +40,8 @@ public class OrderDTO {
     private boolean payed_by_customer;
     
     private AsignationCountDownDTO asignationCountDown;
+    
+    private QuoteDTO quoteDTO;
 
 
     public OrderDTO(Order order) {
@@ -64,6 +66,7 @@ public class OrderDTO {
         this.credit_business_confirmation = order.isCredit_business_confirmation();
         this.payed_by_customer = order.isPayed_by_customer();
         this.asignationCountDown = new AsignationCountDownDTO(order.getAsignationCountDown());
+        this.quoteDTO = order.getQuoteDTO();
      
     }
 }

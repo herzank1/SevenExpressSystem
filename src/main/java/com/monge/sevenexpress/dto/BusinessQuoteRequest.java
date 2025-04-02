@@ -13,6 +13,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper=false)
+@Deprecated
 public class BusinessQuoteRequest extends ApiRequest{
 
     public BusinessQuoteRequest() {

@@ -10,6 +10,7 @@ import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.Customer;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.User;
+import com.monge.sevenexpress.entities.User.Role;
 import com.monge.sevenexpress.events.OnPaymentReceivedFromBusiness;
 
 import com.monge.sevenexpress.repositories.UserRepository;
@@ -26,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -158,18 +160,18 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
         return usersCache;
     }
 
-    public <T> ResponseEntity<ApiResponse> updateEntity(T entity, String entityName) {
-        switch (entityName) {
-            case "User":
+    public <T> ResponseEntity<ApiResponse> updateEntity(T entity, Role accountType) {
+        switch (accountType) {
+            case Role.CUSTOMER:
                 return updateUser((User) entity);
-            case "Delivery":
+            case Role.DELIVERY:
                 return updateDelivery((Delivery) entity);
-            case "Business":
+            case Role.BUSINESS:
                 return updateBusiness((Business) entity);
-            case "Customer":
-                return updateCustomer((Customer) entity);
+            case Role.ADMIN:
+                return updateAdmin((Admin) entity);
             default:
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Unknown entity"));
+                return updateUser((User) entity);
         }
     }
 
@@ -191,6 +193,11 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
     private ResponseEntity<ApiResponse> updateCustomer(Customer customer) {
         customerService.save(customer);
         return ResponseEntity.ok(ApiResponse.success("Customer updated successfully.", customer));
+    }
+
+    private ResponseEntity<ApiResponse> updateAdmin(Admin admin) {
+        adminService.save(admin);
+        return ResponseEntity.ok(ApiResponse.success("Admin updated successfully.", admin));
     }
 
     public <T> ResponseEntity<ApiResponse> getEntityList(String entityName) {
@@ -237,32 +244,41 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
         Delivery byId = deliveryService.getById(user.getAccountId());
         byId.setUserName(userName);
-        
+
         return byId;
 
     }
 
     public Admin getAdminByUserName(String userName) {
-   
+
         User user = findByUserName(userName);
         if (user == null) {
             return null;
         }
-        
+
         return adminService.getById(user.getAccountId());
-    
+
     }
 
     public Business getBusinessByUserName(String userName) {
-          User user = findByUserName(userName);
+        User user = findByUserName(userName);
         if (user == null) {
             return null;
         }
-        
+
         return businessService.getById(user.getAccountId());
-    
+
     }
-    
- 
+
+    @Scheduled(fixedRate = 3600000) // Ejecuta cada 1 hora (en milisegundos)
+    public void cacheCleaner() {
+        long now = System.currentTimeMillis();
+        clearCache();
+        businessService.clearCache();
+        customerService.clearCache();
+        adminService.clearCache();
+        deliveryService.clearCache();
+
+    }
 
 }

@@ -13,6 +13,8 @@ import com.google.maps.model.DistanceMatrixElementStatus;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.model.TravelMode;
 import com.monge.sevenexpress.dto.BusinessQuoteRequest;
+import com.monge.sevenexpress.entities.BusinessContract;
+import com.monge.sevenexpress.entities.dto.QuoteDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
@@ -83,6 +85,16 @@ public class GoogleMapsService {
         }
         return new DistanceDetails(origin, destination, -1, -1); // Retorna valores -1 en caso de error
     }
+    
+         public QuoteDTO calculateDeliveryCost(QuoteDTO quote,BusinessContract contract) {
+            
+            DistanceDetails distanceDetails = getDistanceDetails(quote.getFrom(),quote.getTo());
+            quote.fill(distanceDetails);
+            quote.calc(contract);
+
+            return quote;
+
+        }
     
      public double calculateDeliveryCost(BusinessQuoteRequest bqr) {
             

@@ -16,6 +16,7 @@ import com.monge.sevenexpress.entities.Order;
 import com.monge.sevenexpress.entities.PaymentReceipt;
 import com.monge.sevenexpress.entities.Transaction;
 import com.monge.sevenexpress.entities.dto.OrderDTO;
+import com.monge.sevenexpress.entities.dto.QuoteDTO;
 import com.monge.sevenexpress.enums.OrderType;
 import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.services.OrdersControlService;
@@ -61,6 +62,7 @@ public class BusinesController {
 
     // Endpoint para procesar la cotización con los parámetros de dirección y posición
     @GetMapping("/quote")
+    @Deprecated
     public ResponseEntity<ApiResponse> getDeliveryQuote(@ModelAttribute BusinessQuoteRequest bqr) { // Agregamos el parámetro Principal
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -86,6 +88,38 @@ public class BusinesController {
 
             // Regresamos una respuesta exitosa con el costo de la entrega
             return ResponseEntity.ok().body(ApiResponse.success("Costo de entrega calculado con éxito", deliveryCost));
+
+        } catch (Exception e) {
+            // Regresamos una respuesta de error en caso de excepciones
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Error al calcular el costo de entrega: " + e.getMessage()));
+        }
+    }
+    
+    @GetMapping("/getQuote")
+    @Deprecated
+    public ResponseEntity<ApiResponse> getDeliveryQuoteV2(@ModelAttribute QuoteDTO quoteDTO) { // Agregamos el parámetro Principal
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("User is not authenticated"));
+        }
+
+        Business business = userService.getBusinessByUserName(authentication.getName());
+
+        try {
+            // Verificamos si el principal (usuario) está autenticado
+            if (business == null) {
+                // Regresamos una respuesta de error si el usuario no está autenticado
+
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Usuario no autorizado"));
+            }
+
+            QuoteDTO calculateDeliveryCost = utilitiesService.getGoogleMapsService().calculateDeliveryCost(quoteDTO, business.getBusinessContract());
+
+            // Regresamos una respuesta exitosa con el costo de la entrega
+            return ResponseEntity.ok().body(ApiResponse.success("cotizacion", calculateDeliveryCost));
 
         } catch (Exception e) {
             // Regresamos una respuesta de error en caso de excepciones
@@ -146,6 +180,10 @@ public class BusinesController {
         OrderType orderType = newOrder.getOrderType();
         Order order = new Order(business, customer, newOrder);
         order.setOrderType(orderType);
+        
+        if(newOrder.getQuoteDTO()!=null){
+         order.setQuoteDTO(newOrder.getQuoteDTO());
+        }
 
         ordersControlService.addOrder(order);
 

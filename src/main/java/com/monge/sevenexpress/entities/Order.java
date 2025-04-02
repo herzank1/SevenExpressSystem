@@ -6,6 +6,7 @@ package com.monge.sevenexpress.entities;
 
 import com.monge.sevenexpress.utils.OrderLogManager;
 import com.monge.sevenexpress.dto.NewOrderRequest;
+import com.monge.sevenexpress.entities.dto.QuoteDTO;
 import com.monge.sevenexpress.enums.OrderStatus;
 import com.monge.sevenexpress.enums.OrderType;
 import com.monge.sevenexpress.utils.AsignationCountDown;
@@ -84,6 +85,9 @@ public class Order {
     /*true si el negocio indico que el cliente ya pago al restaurante y el repartidor no debe combrar*/
     @Transient
     private boolean payed_by_customer;
+    
+    @Transient
+    private QuoteDTO quoteDTO;
     
     @Transient
     AsignationCountDown asignationCountDown;

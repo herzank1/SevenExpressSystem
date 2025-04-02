@@ -4,6 +4,7 @@
  */
 package com.monge.sevenexpress.dto;
 
+import com.monge.sevenexpress.entities.dto.QuoteDTO;
 import com.monge.sevenexpress.enums.OrderType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -26,5 +27,7 @@ public class NewOrderRequest extends ApiRequest {
     private float orderCost;
     private float deliveryCost;
     private int preparationTime;
+    
+    private QuoteDTO quoteDTO;
     
 }

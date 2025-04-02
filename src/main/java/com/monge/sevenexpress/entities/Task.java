@@ -39,6 +39,11 @@ public  class Task {
     @Convert(converter = HashMapConverter.class)
     private Map<String, Object> data = new HashMap<>();
 
+    public Task() {
+    }
+    
+    
+
     public Task(LocalDateTime now) {
     this.executionDate = now;
     }

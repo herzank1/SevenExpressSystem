@@ -41,12 +41,20 @@ public class ChatController {
     }
     
     @GetMapping("/getChat")
-    public ResponseEntity<ApiResponse> getRoomMessages(@RequestParam UUID roomId, @RequestParam(required = false) String from) {
-        // Si 'from' es proporcionado, convertimos la cadena en LocalDateTime, de lo contrario, usamos null
-    LocalDateTime fromDate = (from != null) ? LocalDateTime.parse(from) : null;
-    
+    public ResponseEntity<ApiResponse> getRoomMessages(@RequestParam UUID roomId) {
+
    // Llamamos al servicio para obtener los mensajes desde la fecha proporcionada (o todos los mensajes si 'from' es null)
-    List<Message> messages = chatService.getMessagesFrom(roomId, fromDate);    
+    List<Message> messages = chatService.getChat(roomId);    
+    
+    
+        return ResponseEntity.ok(ApiResponse.success("room", messages));
+    }
+    
+       @GetMapping("/getChatUpdates")
+    public ResponseEntity<ApiResponse> getRoomUpdatesMessages(@RequestParam UUID roomId,@RequestParam long user) {
+
+   // Llamamos al servicio para obtener los mensajes desde la fecha proporcionada (o todos los mensajes si 'from' es null)
+    List<Message> messages = chatService.getChatUpdates(roomId,user);    
     
     
         return ResponseEntity.ok(ApiResponse.success("room", messages));

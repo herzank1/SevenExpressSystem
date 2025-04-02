@@ -4,6 +4,7 @@
  */
 package com.monge.sevenexpress.dto;
 
+import java.util.UUID;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -15,7 +16,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper=false)
 public class AdminOrderSetDelivery extends ApiRequest{
     
-    String orderId;
+    UUID orderId;
     long deliveryId;
 
     public AdminOrderSetDelivery() {

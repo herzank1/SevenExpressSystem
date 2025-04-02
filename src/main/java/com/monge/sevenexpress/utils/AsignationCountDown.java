@@ -65,12 +65,14 @@ public class AsignationCountDown {
     }
 
     /* Método por el asignador automático */
-    public void assign(Delivery delivery, boolean force) {
+    public boolean assign(Delivery delivery, boolean force) {
         if (force || !blackList.contains(delivery.getId())) {
             order.setDelivery(delivery);
             deliveryConfirmation = DeliveryConfirmationStatus.WAITING_DELIVERY_CONFIRMATION;
             startCountDown();
+            return true;
         }
+        return false;
     }
 
     public void take() {

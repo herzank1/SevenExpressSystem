@@ -11,6 +11,7 @@ import com.monge.sevenexpress.repositories.MessageRepository;
 import com.monge.sevenexpress.repositories.RoomRepository;
 import com.monge.sevenexpress.subservices.ServiceCacheable;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import org.springframework.context.event.EventListener;
 public class ChatService implements ServiceCacheable<Room, UUID> {
 
     private final ConcurrentHashMap<UUID, Room> rooms = new ConcurrentHashMap<>();
+
     @Autowired
     private MessageRepository messageRepository;
 
@@ -38,16 +40,37 @@ public class ChatService implements ServiceCacheable<Room, UUID> {
         room.addMessage(message);
     }
 
-    // Obtener mensajes desde una fecha específica (si 'from' es null, se retornan todos los mensajes)
-    public List<Message> getMessagesFrom(UUID roomId, LocalDateTime fromDate) {
+    public List<Message> getChatUpdates(UUID roomId, long user) {
+        List<Message> updatedMessages = new ArrayList<>();
 
-        return getOrCreateRoom(roomId).getMessagesFrom(fromDate);
-//        
-//        if (fromDate != null) {
-//            return messageRepository.findByRoomIdAndTimestampAfter(roomId, fromDate);
-//        } else {
-//            return messageRepository.findByRoomId(roomId); // Si no se pasa 'from', retornamos todos los mensajes
-//        }
+        // Obtén o crea la sala de chat
+        Room room = getOrCreateRoom(roomId);
+
+        // Iterar sobre los mensajes de la sala
+        for (Message message : room.getMessages()) {
+            // Verificar si el mensaje ha sido enviado por el usuario y si no ha sido marcado como 'true'
+            if (message.getSeentBy().get(user) == null) {
+                // Cambiar el valor del mapa para el usuario a 'true'
+                message.getSeentBy().put(user, false);
+
+            }
+
+            if (!message.getSeentBy().get(user)) {
+                updatedMessages.add(message);
+                message.getSeentBy().put(user, true);
+            }
+
+        }
+
+        // Retornar la lista de mensajes actualizados
+        return updatedMessages;
+    }
+
+    /*el cliente debera llama a esta funcion cuando inice el chat*/
+    public List<Message> getChat(UUID roomId) {
+
+        return getOrCreateRoom(roomId).getMessages();
+
     }
 
     @EventListener
@@ -58,6 +81,8 @@ public class ChatService implements ServiceCacheable<Room, UUID> {
             messageRepository.saveAll(room.getMessages());
         }
         roomRepository.save(room);
+        
+        rooms.remove(event.getOrder().getId());
     }
 
     @Override

@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,120 +41,107 @@ import org.springframework.stereotype.Service;
 @Data
 @Service
 public class OrdersService {
-    
+
     @Autowired
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    private final List<Order> currentOrders = Collections.synchronizedList(new CopyOnWriteArrayList<>());
+    private final ConcurrentMap<UUID, Order> currentOrders = new ConcurrentHashMap<>();
 
     @Autowired
     private OrderRepository orderRepository;
 
-
+    // Métodos de acceso
     public void addOrder(Order order) {
         if (order.getBusiness() == null) {
             throw new IllegalArgumentException("La orden debe tener un negocio asignado.");
         }
-        currentOrders.add(order);
+        currentOrders.put(order.getId(), order);
     }
 
     // Función para eliminar una orden por su ID
     public void removeOrderById(UUID orderId) {
-        currentOrders.removeIf(order -> order.getId().equals(orderId));
+        currentOrders.remove(orderId); // Operación atómica
     }
 
-    // Función para obtener una orden por su ID
     public Order getOrderById(UUID orderId) {
-        return currentOrders.stream()
-                .filter(order -> order.getId().equals(orderId))
-                .findFirst()
-                .orElse(null); // Retorna null si no se encuentra la orden
+        return currentOrders.get(orderId); // Operación atómica O(1)
     }
 
     // Función para obtener las órdenes de un negocio por su ID
     public List<Order> getOrdersByBusinessId(long businessId) {
-        return (ArrayList<Order>) currentOrders.stream()
+        return new ArrayList<>(currentOrders.values().stream()
                 .filter(order -> order.getBusiness() != null && order.getBusiness().getId().equals(businessId))
-                .collect(Collectors.toList());
+                //.filter(order -> !order.getStatus().equals(OrderStatus.ENTREGADO) && !order.getStatus().equals(OrderStatus.CANCELADO))
+                .collect(Collectors.toList()));
     }
 
-    // Función para obtener las órdenes de un cliente por su ID
+// Función para obtener las órdenes de un cliente por su ID
     public List<Order> getOrdersByCustomerId(long customerId) {
-        return (ArrayList<Order>) currentOrders.stream()
+        return new ArrayList<>(currentOrders.values().stream()
                 .filter(order -> order.getCustomer() != null && order.getCustomer().getId().equals(customerId))
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
-    // Función para obtener las órdenes de un delivery por su ID!
+// Función para obtener las órdenes de un delivery por su ID
     public List<Order> getOrdersByDeliveryId(long deliveryId) {
-        return (ArrayList<Order>) currentOrders.stream()
+        return new ArrayList<>(currentOrders.values().stream()
                 .filter(order -> order.getDelivery() != null && order.getDelivery().getId().equals(deliveryId))
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
-    // Función para obtener todas las órdenes
+// Función para obtener todas las órdenes
     public List<Order> getAllOrders() {
-        return currentOrders;
+        return new ArrayList<>(currentOrders.values());
     }
-    
-    
+
     public List<Order> getInProcessOrders() {
-    return currentOrders.stream()
-            .filter(order -> order.getStatus() != OrderStatus.ENTREGADO && order.getStatus() != OrderStatus.CANCELADO)
-            .collect(Collectors.toList());
-}
+        return currentOrders.values().stream()
+                .filter(order -> order.getStatus() != OrderStatus.ENTREGADO && order.getStatus() != OrderStatus.CANCELADO)
+                .collect(Collectors.toList());
+    }
 
     public int getDeliveryOrderCount(Delivery delivery) {
         if (delivery == null) {
             return 0; // Si el delivery es null, no tiene sentido buscar órdenes para él
         }
 
-        return (int) currentOrders.stream()
+        return (int) currentOrders.values().stream()
                 .filter(c -> c.getDelivery() != null && c.getDelivery().equals(delivery))
                 .count();
     }
 
     public ApiResponse changeOrderStatus(ChangeOrderStatusRequest cosr) {
-
-        // Validar existencia de la orden
+        // Bloqueamos por ID de orden para permitir concurrencia entre diferentes órdenes
         Order order = getOrderById(cosr.getOrderId());
         if (order == null) {
             return ApiResponse.error("Esta orden no existe!");
         }
 
-        // Validar autorización
-        boolean isRequesterAdmin = cosr.getRequesterType().equals(User.Role.ADMIN);
-        boolean isRequesterBusiness = order.getBusiness().getId().equals(cosr.getRequesterId());
-        boolean isRequesterDelivery = order.getDelivery() != null && order.getDelivery().getId().equals(cosr.getRequesterId());
+        synchronized (order) { // Bloqueamos ESTA orden específica
+            // Validar autorización
+            boolean isRequesterAdmin = cosr.getRequesterType().equals(User.Role.ADMIN);
+            boolean isRequesterBusiness = order.getBusiness().getId().equals(cosr.getRequesterId());
+            boolean isRequesterDelivery = order.getDelivery() != null && order.getDelivery().getId().equals(cosr.getRequesterId());
 
-        if (!(isRequesterAdmin || isRequesterBusiness || isRequesterDelivery)) {
-            return ApiResponse.error("No estás autorizado para modificar esta orden!");
-        }
-
-        /*verifica si cosr es un cambio de estado*/
-        if (cosr.getNewStatus() != null) {
-            // Validar cambio de estado
-            if (!canChangeStatus(cosr.getRequesterType(), order.getStatus(), cosr.getNewStatus())) {
-                return ApiResponse.error("No se puede cambiar el estado de " + order.getStatus() + " a " + cosr.getNewStatus());
+            if (!(isRequesterAdmin || isRequesterBusiness || isRequesterDelivery)) {
+                return ApiResponse.error("No estás autorizado para modificar esta orden!");
             }
 
-            // Actualizar estado
-            order.setStatus(cosr.getNewStatus());
+            if (cosr.getNewStatus() != null) {
+                if (!canChangeStatus(cosr.getRequesterType(), order.getStatus(), cosr.getNewStatus())) {
+                    return ApiResponse.error("No se puede cambiar el estado de " + order.getStatus() + " a " + cosr.getNewStatus());
+                }
 
-            /*post cambio de estado*/
-            postChangeStatus(order);
+                order.setStatus(cosr.getNewStatus());
+                postChangeStatus(order);
+            }
 
+            if (cosr.getIndication() != null) {
+                executeUserIndication(order, cosr.getIndication());
+            }
+
+            OrderLogManager.addLog(order.getOrderLog(), cosr);
         }
-
-        /*verifica si cosr es una indicacion*/
-        if (cosr.getIndication() != null) {
-            /*executar indication*/
-            executeUserIndication(order, cosr.getIndication());
-        }
-
-        /*agregamos el registro a la orden*/
-   
-          OrderLogManager.addLog(order.getOrderLog(), cosr);
 
         return ApiResponse.success("Se ha actualizado el estado de esta orden!", order);
     }
@@ -193,78 +182,78 @@ public class OrdersService {
 
             case ARRIVED_TO_BUSINESS:
                 order.setArrivedToBusiness(true);
- 
+
             default:
                 return true;
         }
 
     }
 
-    /*despues de que haya cambiado a un estado*/
     private boolean postChangeStatus(Order order) {
-        switch (order.getStatus()) {
-            case LISTO:
-                return true;
+        synchronized (order) {  // Bloqueamos la orden específica
+            switch (order.getStatus()) {
+                case LISTO:
+                    return true;
 
-            case EN_CAMINO:
-            //case EN_DOMICILIO:
-            case ENTREGADO:
-                /*cargar servicio a negocio o pagar al delivery*/
-                executePostOrderDelivered(order);
-                orderRepository.save(order);
-                return true;
+                case EN_CAMINO:
+                case ENTREGADO:
+                    executePostOrderDelivered(order);
+                    // Mover persistencia y remoción fuera del bloque sincronizado
+                    // para reducir el tiempo de bloqueo
+                    persistAndRemoveOrder(order);
+                    return true;
 
-            case CANCELADO:
-                orderRepository.save(order);
-                return true; // Cualquier usuario puede cancelar en cualquier momento
+                case CANCELADO:
+                    persistAndRemoveOrder(order);
+                    return true;
 
-            default:
-                return false;
+                default:
+                    return false;
+            }
         }
-
     }
-    
-    public void executePostOrderDelivered(Order order){
+
+    // Método auxiliar para operaciones de persistencia
+    private void persistAndRemoveOrder(Order order) {
+        // Operaciones de persistencia fuera del bloqueo principal
+        orderRepository.save(order);
+
+        // Bloqueamos brevemente solo para la remoción
+        synchronized (this) {
+            removeOrderById(order.getId());
+        }
+    }
+
+    public void executePostOrderDelivered(Order order) {
         OnOrderDeliveredEvent event = new OnOrderDeliveredEvent(this, order);
         applicationEventPublisher.publishEvent(event);
     }
-    
-    
 
-    public ApiResponse takerOrRejectOrderByDelivery(DeliveryTakeOrRejectOrder dtoro) {
+public ApiResponse takerOrRejectOrderByDelivery(DeliveryTakeOrRejectOrder dtoro) {
+    Order order = getOrderById(dtoro.getOrderId());
+    if (order == null) {
+        return ApiResponse.error("Esta orden no existe!");
+    }
 
-        // Validar existencia de la orden
-        Order order = getOrderById(dtoro.getOrderId());
-        if (order == null) {
-            return ApiResponse.error("Esta orden no existe!");
-        }
-
+    synchronized(order) {  // Bloqueamos esta orden específica
         /*verificar repartidor*/
         if (order.getDelivery() != null && order.getDelivery().getId().equals(dtoro.getRequesterId())) {
 
             OrderLogManager.addLog(order.getOrderLog(), dtoro);
-           
+
             if (dtoro.isTake()) {
                 order.getAsignationCountDown().take();
-                return ApiResponse.success("Repartidor a tomado la orden", order);
+                return ApiResponse.success("Repartidor ha tomado la orden", order);
             } else {
-
                 order.getAsignationCountDown().reject();
-                return ApiResponse.success("Repartidor a rechazo la orden", order);
+                return ApiResponse.success("Repartidor ha rechazado la orden", order);
             }
-
         }
-
-        return ApiResponse.success("No se pudo tomar esta orden.", null);
     }
 
-    /***
-     * Asigna orden a un repartido de forma manual (admins)
-     * @param aosd
-     * @return 
-     */
-    public ApiResponse orderSetDelivery(AdminOrderSetDelivery aosd) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
+    return ApiResponse.error("No se pudo tomar esta orden.");
+}
+
+   
 
 }

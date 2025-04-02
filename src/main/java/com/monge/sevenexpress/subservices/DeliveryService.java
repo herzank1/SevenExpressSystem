@@ -10,6 +10,7 @@ import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.User;
 import com.monge.sevenexpress.repositories.DeliveryRepository;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -84,5 +85,38 @@ public class DeliveryService implements ServiceCacheable<Delivery, Long> {
     public Map<Long, Delivery> getCache() {
         return deliveriesCache;
     }
+    
+   @Override
+public void clearCache() {
+    // Obtener todos los `Delivery` desde la base de datos
+    List<Delivery> dbDeliveries = deliveryRepository.findAll();
+
+    // Crear un nuevo caché sin los elementos `conected = false`
+    Map<Long, Delivery> newCache = new ConcurrentHashMap<>();
+
+    for (Delivery dbDelivery : dbDeliveries) {
+        // Si existe en el caché, mantener sus valores `@Transient`
+        Delivery cachedDelivery = deliveriesCache.get(dbDelivery.getId());
+
+        if (cachedDelivery != null) {
+            dbDelivery.setPosition(cachedDelivery.getPosition());
+            dbDelivery.setConected(cachedDelivery.isConected());
+            dbDelivery.setUserName(cachedDelivery.getUserName());
+            dbDelivery.setLastOrderAsignedTimeStamp(cachedDelivery.getLastOrderAsignedTimeStamp());
+        }
+
+        // Agregar solo si `conected == true`
+        if (dbDelivery.isConected()) {
+            newCache.put(dbDelivery.getId(), dbDelivery);
+        }
+    }
+
+    // Reemplazar el caché antiguo
+    deliveriesCache.clear();
+    deliveriesCache.putAll(newCache);
+
+    System.out.println("🧹 Caché limpiado y actualizado con " + deliveriesCache.size() + " elementos.");
+}
+
 
 }

@@ -5,7 +5,6 @@
 package com.monge.sevenexpress.entities;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.monge.sevenexpress.utils.StringListConverter;
 import jakarta.persistence.CascadeType;
@@ -18,8 +17,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import java.util.ArrayList;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
  *

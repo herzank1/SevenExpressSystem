@@ -15,6 +15,8 @@ import com.monge.sevenexpress.entities.Order;
 import com.monge.sevenexpress.entities.PaymentReceipt;
 import com.monge.sevenexpress.entities.PaymentReceipt.PaymentStatus;
 import com.monge.sevenexpress.entities.User;
+import com.monge.sevenexpress.entities.User.Role;
+import com.monge.sevenexpress.entities.dto.OrderDTO;
 import com.monge.sevenexpress.entities.dto.TransferDTO;
 import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.services.OrdersControlService;
@@ -23,6 +25,7 @@ import com.monge.sevenexpress.services.UtilitiesService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -77,7 +80,7 @@ public class AdminController {
         }
 
         List<Order> orders = ordersControlService.getAllOrders();
-        return ResponseEntity.ok(ApiResponse.success("success", orders));
+        return ResponseEntity.ok(ApiResponse.success("success", orders.stream().map(OrderDTO::new).collect(Collectors.toList())));
     }
 
     /**
@@ -159,6 +162,7 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("customer found!", customer));
     }
 
+    @Deprecated
     @PostMapping("/createOrUpdate")
     public ResponseEntity<ApiResponse> createOrUpdateCustomer(@RequestBody Customer customer) {
         // Validar que phoneNumber no sea nulo o vacío
@@ -252,7 +256,7 @@ public class AdminController {
 
 
     @PostMapping("/updateEntity")
-    public ResponseEntity<ApiResponse> updateEntity(@RequestParam String entityName, @RequestBody Object entity) {
+    public ResponseEntity<ApiResponse> updateEntity(@RequestParam Role entityName, @RequestBody Object entity) {
 
         if (entity == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Entity data is missing."));
@@ -289,6 +293,7 @@ public class AdminController {
     
     }
     
+    /*aprueva o rechaza un recibo de pago*/
     @PostMapping("/paymentReceipt")
     public ResponseEntity<ApiResponse> updatePaymentReceipt(@RequestParam long id, @RequestParam PaymentStatus status){
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

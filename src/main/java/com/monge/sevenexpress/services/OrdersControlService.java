@@ -19,6 +19,7 @@ import com.monge.sevenexpress.utils.Position;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,8 @@ import org.springframework.stereotype.Service;
 @Data
 @Service
 public class OrdersControlService {
+     private final ReentrantLock assignLock = new ReentrantLock(); // 🔒 Bloqueo para evitar colisiones
+
 
     private final OrdersService ordersService;
     private final DeliveryService deliveryService;
@@ -50,51 +53,42 @@ public class OrdersControlService {
 
     }
 
-    @Scheduled(fixedRate = 15000) // Se ejecuta cada 15 segundos
+   @Scheduled(fixedRate = 15000) // Se ejecuta cada 15 segundos
     private void startAtmAsignator() {
+        assignLock.lock(); // 🔒 Bloquear mientras se asignan pedidos
+        try {
+            ArrayList<Order> availables = ordersService
+                    .getAllOrders()
+                    .stream()
+                    .filter(c -> c.getStatus() == OrderStatus.PREPARANDO || c.getStatus() == OrderStatus.LISTO)
+                    .filter(c -> c.getDelivery() == null)
+                    .collect(Collectors.toCollection(ArrayList::new));
 
-        /*obtenemos la lista de ordenes disponibles (sin repartidor)*/
-        ArrayList<Order> availables = ordersService
-                .getAllOrders()
-                .stream()
-                .filter(c -> c.getStatus() == OrderStatus.PREPARANDO || c.getStatus() == OrderStatus.LISTO)
-                .filter(c -> c.getDelivery() == null)
-                .collect(Collectors.toCollection(ArrayList::new));
+            if (availables.isEmpty()) return;
 
-        if (availables.isEmpty()) {
-            return;
-        }
+            ArrayList<Delivery> conectedDeliveries = deliveryService.getConectedDeliveries();
+            conectedDeliveries = sortDeliveriesByLastOrderReceived(conectedDeliveries);
 
-        /*obtenemos la lista de repartidores conectados*/
-        ArrayList<Delivery> conectedDeliveries = deliveryService.getConectedDeliveries();
+            if (conectedDeliveries.isEmpty()) return;
 
-
-        /*sorteamos a los repartitores al mas perreado al recien ejecutado, (pedidos recientes)*/
-        conectedDeliveries = sortDeliveriesByLastOrderReceived(conectedDeliveries);
-
-        if (conectedDeliveries.isEmpty()) {
-            return;
-        }
-
-        for (Delivery delivery : conectedDeliveries) {
-            LoggerUtils.printInfo("buscado orden para el repartidor " + delivery.getId());
-            int orderCount = ordersService.getDeliveryOrderCount(delivery);
-            /*si el repartidor tiene capacidad o disponible*/
-            if (orderCount < MAX_ORDER_PER_DELIVERY) {
-                for (Order order : availables) {
-                    LoggerUtils.printInfo("revisando orden " + order.getId().toString());
-                    /*si esta cercas*/
-                    if (calcDistanceKm(order, delivery) <= MAX_DISTANCE_FOR_PICKUP) {
-                        order.getAsignationCountDown().assign(delivery, true);
-
-                        LoggerUtils.printInfo("Orden " + order.getId().toString() + " asignada al repartidor " + delivery.getId());
-                        break;
+            for (Delivery delivery : conectedDeliveries) {
+                LoggerUtils.printInfo("Buscando orden para el repartidor " + delivery.getId());
+                int orderCount = ordersService.getDeliveryOrderCount(delivery);
+                
+                if (orderCount < MAX_ORDER_PER_DELIVERY) {
+                    for (Order order : availables) {
+                        LoggerUtils.printInfo("Revisando orden " + order.getId());
+                        if (calcDistanceKm(order, delivery) <= MAX_DISTANCE_FOR_PICKUP) {
+                            order.getAsignationCountDown().assign(delivery, true);
+                            LoggerUtils.printInfo("Orden " + order.getId() + " asignada al repartidor " + delivery.getId());
+                            break;
+                        }
                     }
                 }
-
             }
+        } finally {
+            assignLock.unlock(); // 🔓 Liberar el bloqueo después de asignar
         }
-
     }
 
     /*ordena la lista de repartidores por timestamp de la ultima vez que recibio pedido
@@ -135,8 +129,21 @@ public class OrdersControlService {
     }
 
     public ApiResponse orderSetDelivery(AdminOrderSetDelivery aosd) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        assignLock.lock(); // 🔒 Bloqueo antes de modificar el caché
+        try {
+            Delivery delivery = deliveryService.getById(aosd.getDeliveryId());
+            if (delivery == null) {
+                return ApiResponse.error("Delivery no encontrado en caché");
+            }
+            
+            boolean assign = ordersService.getOrderById(aosd.getOrderId())
+                    .getAsignationCountDown()
+                    .assign(delivery, true);
 
+            return ApiResponse.success("Asignación manual", assign);
+        } finally {
+            assignLock.unlock(); // 🔓 Liberar el bloqueo después de la operación
+        }
     }
 
     public List<Order> getAllOrders() {
@@ -148,7 +155,7 @@ public class OrdersControlService {
     }
 
     public List<Delivery> getConectedDeliveries() {
-    return deliveryService.getConectedDeliveries();
+        return deliveryService.getConectedDeliveries();
     }
 
 }

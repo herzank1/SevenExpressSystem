@@ -52,13 +52,13 @@ protected void doFilterInternal(HttpServletRequest request,
         HttpServletResponse response,
         FilterChain filterChain) throws ServletException, IOException, java.io.IOException {
     
-    logger.info("Ejecutando filtro JWT...");
+   // logger.info("Ejecutando filtro JWT...");
 
     String token = getJwtFromRequest(request);
     
      // Verificar si el token está en la blacklist
         if (token != null && tokenBlacklistService.isTokenBlacklisted(token)) {
-            logger.warn("Token revocado detectado.");
+          //  logger.warn("Token revocado detectado.");
           
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
@@ -75,7 +75,7 @@ protected void doFilterInternal(HttpServletRequest request,
 
         if (userDetails != null) {
             // Log para verificar si el UserDetails ha sido correctamente cargado
-            logger.info("UserDetails cargado para el usuario: {}", username);
+          //  logger.info("UserDetails cargado para el usuario: {}", username);
 
             // Creando la autenticación
             Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
@@ -83,14 +83,14 @@ protected void doFilterInternal(HttpServletRequest request,
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
             // Log para verificar si la autenticación se ha establecido correctamente
-            logger.info("Autenticación establecida para el usuario: {}", username);
+        //    logger.info("Autenticación establecida para el usuario: {}", username);
         } else {
             // Log para verificar si no se pudo cargar el usuario
-            logger.warn("No se pudo cargar el UserDetails para el usuario: {}", username);
+          //  logger.warn("No se pudo cargar el UserDetails para el usuario: {}", username);
         }
     } else {
         // Log si el token es nulo o inválido
-        logger.warn("Token inválido o nulo detectado.");
+     //   logger.warn("Token inválido o nulo detectado.");
     }
 
     // Continuar con el filtro
