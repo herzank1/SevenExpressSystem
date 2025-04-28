@@ -4,10 +4,7 @@
  */
 package com.monge.sevenexpress.subservices;
 
-import com.monge.sevenexpress.services.UserService;
-import com.monge.sevenexpress.entities.BalanceAccount;
 import com.monge.sevenexpress.entities.Delivery;
-import com.monge.sevenexpress.entities.User;
 import com.monge.sevenexpress.repositories.DeliveryRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +14,6 @@ import java.util.stream.Collectors;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  *
@@ -25,16 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Data
-public class DeliveryService implements ServiceCacheable<Delivery, Long> {
+public class DeliveryService implements ServiceCacheable<Delivery, String> {
 
     @Autowired
     private final DeliveryRepository deliveryRepository;
 
     // Cache en memoria para almacenar los objetos Delivery
-    private final Map<Long, Delivery> deliveriesCache = new ConcurrentHashMap<>();
+    private final Map<String, Delivery> deliveriesCache = new ConcurrentHashMap<>();
 
 
-    public Delivery getById(long id) {
+    public Delivery getById(String id) {
         // Buscar en caché
         if (getCache().containsKey(id)) {
             return getCache().get(id);
@@ -65,6 +61,13 @@ public class DeliveryService implements ServiceCacheable<Delivery, Long> {
      * Guarda un Delivery y actualiza la caché.
      */
     public Delivery save(Delivery delivery) {
+        
+         if (delivery.getId() == null || delivery.getId().isEmpty()) {
+            String generatedId =  generateId();
+            delivery.setId(generatedId);
+        }
+        
+        
         // Guardar el delivery en la base de datos
         Delivery savedDelivery = deliveryRepository.save(delivery);
 
@@ -82,7 +85,7 @@ public class DeliveryService implements ServiceCacheable<Delivery, Long> {
     }
 
     @Override
-    public Map<Long, Delivery> getCache() {
+    public Map<String, Delivery> getCache() {
         return deliveriesCache;
     }
     
@@ -92,7 +95,7 @@ public void clearCache() {
     List<Delivery> dbDeliveries = deliveryRepository.findAll();
 
     // Crear un nuevo caché sin los elementos `conected = false`
-    Map<Long, Delivery> newCache = new ConcurrentHashMap<>();
+    Map<String, Delivery> newCache = new ConcurrentHashMap<>();
 
     for (Delivery dbDelivery : dbDeliveries) {
         // Si existe en el caché, mantener sus valores `@Transient`
@@ -117,6 +120,10 @@ public void clearCache() {
 
     System.out.println("🧹 Caché limpiado y actualizado con " + deliveriesCache.size() + " elementos.");
 }
+
+  private String generateId() {
+        return "D-" + deliveryRepository.count();
+    }
 
 
 }

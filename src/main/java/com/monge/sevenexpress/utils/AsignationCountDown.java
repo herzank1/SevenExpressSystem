@@ -24,10 +24,10 @@ import lombok.Data;
 public class AsignationCountDown {
 
     //referenced order
-   // @JsonBackReference
+    // @JsonBackReference
     @JsonIgnore
     Order order;
-    ArrayList<Long> blackList = new ArrayList<>();
+    ArrayList<String> blackList = new ArrayList<>();
     DeliveryConfirmationStatus deliveryConfirmation;
 
     // Usamos ScheduledExecutorService para manejar temporizadores de manera eficiente
@@ -59,9 +59,13 @@ public class AsignationCountDown {
 
     // Detiene solo la tarea actual (sin detener todos los hilos)
     private void stopCountDown() {
-        if (countdownTask != null && !countdownTask.isDone()) {
-            countdownTask.cancel(false);  // Cancela la tarea, pero no interrumpe el hilo
+        try {
+            if (countdownTask != null && !countdownTask.isDone()) {
+                countdownTask.cancel(false);  // Cancela la tarea, pero no interrumpe el hilo
+            }
+        } catch (Exception e) {
         }
+
     }
 
     /* Método por el asignador automático */
@@ -75,11 +79,17 @@ public class AsignationCountDown {
         return false;
     }
 
+    /***
+     * Repartidor confirma la orden
+     */
     public void take() {
         deliveryConfirmation = DeliveryConfirmationStatus.COMFIRMED;
         stopCountDown();
     }
 
+    /***
+     * repartidor rechaza la orden y se agrega a la lista negra
+     */
     public void reject() {
         deliveryConfirmation = DeliveryConfirmationStatus.NONE;
         if (!blackList.contains(order.getDelivery().getId())) {

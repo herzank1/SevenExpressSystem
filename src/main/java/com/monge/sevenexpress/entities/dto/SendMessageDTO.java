@@ -18,10 +18,9 @@ public class SendMessageDTO {
 
     private UUID roomId;
 
-    private long from;
+    private String from;
     private LocalDateTime timestamp; // Fecha y hora de la transacción
     private String content;
-    private String base54Data;
     private Message.MessageType type;
 
 }

@@ -6,16 +6,18 @@ package com.monge.sevenexpress.security;
 
 import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.subservices.JwtService;
-import com.monge.sevenexpress.subservices.TokenBlacklistService;
 import com.monge.sevenexpress.services.UserService;
 import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.slf4j.Logger;
 
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,28 +26,34 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-@Component
+@Data
+@EqualsAndHashCode(callSuper=false)
+//@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
-    private final UserService userService;
-    private final TokenBlacklistService tokenBlacklistService;
-
-    public JwtAuthenticationFilter(JwtService jwtService, UserService userService,TokenBlacklistService tokenBlacklistService) {
+    private final  UserService userService;
+    
+      public JwtAuthenticationFilter(JwtService jwtService, UserService userService) {
         this.jwtService = jwtService;
         this.userService = userService;
-        this.tokenBlacklistService = tokenBlacklistService;
+   
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        return path.startsWith("/business/")
-                ||path.startsWith("/customers/")
-                ||path.startsWith("/deliveries/")
-                ||path.startsWith("/admins/");
-    }
+
+  
+
+ @Override
+protected boolean shouldNotFilter(HttpServletRequest request) {
+    String path = request.getServletPath();
+    return path.startsWith("/businessApp/")   // Excluir rutas relacionadas con la app de negocios
+            || path.startsWith("/adminsApp/")   // Excluir rutas relacionadas con la app de admins
+            || path.startsWith("/api/v1/auth/login")  // Excluir login
+            || path.startsWith("/api/v1/auth/register") // Excluir registro
+            || path.startsWith("/api/v1/auth/validatetoken"); // Excluir validación de token
+}
+
 
 @Override
 protected void doFilterInternal(HttpServletRequest request,
@@ -56,15 +64,7 @@ protected void doFilterInternal(HttpServletRequest request,
 
     String token = getJwtFromRequest(request);
     
-     // Verificar si el token está en la blacklist
-        if (token != null && tokenBlacklistService.isTokenBlacklisted(token)) {
-          //  logger.warn("Token revocado detectado.");
-          
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write(ApiResponse.error("Token inválido o revocado").toJson());
-            return;
-        }
+ 
 
     // Verificamos si el token existe y es válido
     if (token != null && jwtService.validateToken(token)) {

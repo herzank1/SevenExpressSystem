@@ -12,9 +12,10 @@ import com.google.maps.model.DistanceMatrixElement;
 import com.google.maps.model.DistanceMatrixElementStatus;
 import com.google.maps.model.GeocodingResult;
 import com.google.maps.model.TravelMode;
-import com.monge.sevenexpress.dto.BusinessQuoteRequest;
 import com.monge.sevenexpress.entities.BusinessContract;
 import com.monge.sevenexpress.entities.dto.QuoteDTO;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
@@ -67,8 +68,14 @@ public class GoogleMapsService {
 
     public DistanceDetails getDistanceDetails(String origin, String destination) {
         try {
+            
+             // Asegura que estén correctamente codificadas en UTF-8 para URLs
+        String encodedOrigin = URLEncoder.encode(origin, StandardCharsets.UTF_8.toString());
+        String encodedDestination = URLEncoder.encode(destination, StandardCharsets.UTF_8.toString());
+
+            
             DistanceMatrix result = DistanceMatrixApi.getDistanceMatrix(context,
-                    new String[]{origin}, new String[]{destination})
+                    new String[]{encodedOrigin}, new String[]{encodedDestination})
                     .mode(TravelMode.DRIVING) // Puedes cambiarlo a WALKING, BICYCLING, TRANSIT
                     .await();
 
@@ -95,20 +102,7 @@ public class GoogleMapsService {
             return quote;
 
         }
-    
-     public double calculateDeliveryCost(BusinessQuoteRequest bqr) {
-            
-            DistanceDetails distanceDetails = getDistanceDetails(bqr.getAddress(),bqr.getAddress());
 
-            if (distanceDetails.getKilometers() == -1) {
-                return 50.0;
-            } else {
-          
-
-                return 40;
-            }
-
-        }
 
     @Data
     public  class DistanceDetails {

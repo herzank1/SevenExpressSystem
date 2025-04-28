@@ -12,10 +12,14 @@ import com.monge.sevenexpress.entities.PaymentReceipt;
 import com.monge.sevenexpress.entities.PaymentReceipt.PaymentStatus;
 import com.monge.sevenexpress.entities.Transaction;
 import com.monge.sevenexpress.entities.dto.TransferDTO;
+import com.monge.sevenexpress.events.ChargeApiCallsEvent;
 import com.monge.sevenexpress.subservices.BalanceAccountService;
 import com.monge.sevenexpress.events.OnOrderDeliveredEvent;
 import com.monge.sevenexpress.subservices.PaymentReceiptService;
 import com.monge.sevenexpress.subservices.TransactionService;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
@@ -122,7 +126,7 @@ public class ContabilityService {
 
     @Transactional
     @EventListener
-    public boolean executeContractPostOrderDelivered(OnOrderDeliveredEvent event) {
+    protected  boolean executeContractPostOrderDelivered(OnOrderDeliveredEvent event) {
 
         Order order = event.getOrder();
 
@@ -181,6 +185,7 @@ public class ContabilityService {
 
             Transaction transfer = transfer(_from, _to, transaction.getAmount(), transaction.getReason());
             transaction.setId(transfer.getId());
+           
             return transaction;
 
         }
@@ -206,8 +211,12 @@ public class ContabilityService {
                 break;
 
         }
+        
+        
 
         return transaction;
+        
+      
 
     }
 
@@ -277,6 +286,31 @@ public class ContabilityService {
         if (!business.exceedsItsDebt()) {
             business.setAccountStatus(Business.AccountStatus.ACTIVADO);
             userService.getBusinessService().save(business);
+        }
+
+    }
+
+    @EventListener
+    protected  void executeChargeApiCalls(ChargeApiCallsEvent event) {
+
+        ConcurrentHashMap<Long, Double> userApiUsage = event.getUserApiUsage();
+        Iterator<Map.Entry<Long, Double>> iterator = userApiUsage.entrySet().iterator();
+
+        // Recorrer todas las entradas del mapa
+        while (iterator.hasNext()) {
+            // Obtener cada entrada (key, value)
+            Map.Entry<Long, Double> entry = iterator.next();
+
+            Long key = entry.getKey();
+            Double value = entry.getValue();
+            BalanceAccount findById = balanceAccountService.findById(key);
+            if (findById != null) {
+                findById.sub(value);
+                balanceAccountService.save(findById);
+                
+                transactionService.createTransaction(key, value, "Miselaneos", Transaction.TransactionType.CHARGE);
+            }
+
         }
 
     }

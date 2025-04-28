@@ -4,8 +4,8 @@
  */
 package com.monge.sevenexpress.subservices;
 
-import com.monge.sevenexpress.dto.PaymentReceiptRequest;
 import com.monge.sevenexpress.entities.PaymentReceipt;
+import com.monge.sevenexpress.entities.dto.PaymentReceiptDTO;
 import com.monge.sevenexpress.repositories.PaymentReceiptRepository;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +22,7 @@ public class PaymentReceiptService {
     @Autowired
     private PaymentReceiptRepository paymentReceiptRepository;
     
-    public PaymentReceipt savePaymentReceipt(PaymentReceiptRequest request) {
+    public PaymentReceipt savePaymentReceipt(PaymentReceiptDTO request) {
         PaymentReceipt receipt = new PaymentReceipt();
         receipt.setBalanceAccountId(request.getBalanceAccountId());
         receipt.setAmount(request.getAmount());
@@ -30,7 +30,7 @@ public class PaymentReceiptService {
         receipt.setStatus(request.getStatus());
         receipt.setReference(request.getReference());
         receipt.setConcept(request.getConcept());
-        receipt.setBase64Image(request.getBase64Image());
+        receipt.setImageUrl(request.getImageUrl());
 
         return paymentReceiptRepository.save(receipt);
     }

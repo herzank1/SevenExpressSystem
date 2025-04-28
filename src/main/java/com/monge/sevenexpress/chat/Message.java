@@ -4,6 +4,7 @@
  */
 package com.monge.sevenexpress.chat;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.monge.sevenexpress.entities.dto.SendMessageDTO;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,7 +20,6 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import lombok.Data;
 
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,41 +34,35 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;  // Identificador único del mensaje
     @Column(name = "sender_id")  // Renombrar 'from' a 'sender_id' para evitar conflictos
-    private long from;  // El ID del usuario que envía el mensaje
+    private String from;  // El ID del usuario que envía el mensaje
 
     private LocalDateTime timestamp;  // Fecha y hora de envío del mensaje
 
     private String content;  // El contenido del mensaje (puede ser texto o la URL de una imagen)
-    
-    @Lob
-    private String base54Data;
-    
-       @ManyToOne
+
+    @ManyToOne
     @JoinColumn(name = "room_id", nullable = false) // Clave foránea que enlaza con Room
+    @JsonBackReference
     private Room room;
 
     @Enumerated(EnumType.STRING)
     private MessageType type;  // Tipo de mensaje (texto o imagen)
 
-   
     // Constructor vacío requerido por JPA
-    public Message() {}
-    
+    public Message() {
+    }
+
     /*map temporal para menejar actualizaciones*/
     @Transient
-    private Map<Long,Boolean> seentBy = new HashMap<>();
-
-   
+    private Map<String, Boolean> seentBy = new HashMap<>();
 
     // Método para crear el mensaje a partir de un DTO
     public Message(SendMessageDTO messageDTO) {
         this.from = messageDTO.getFrom();
-           this.timestamp = LocalDateTime.now();  // La fecha y hora se establece automáticamente
+        this.timestamp = LocalDateTime.now();  // La fecha y hora se establece automáticamente
         this.content = messageDTO.getContent();
-        this.base54Data = messageDTO.getBase54Data();
         this.type = messageDTO.getType();
-     
-   
+
     }
 
     // Enum que define los tipos de mensajes: texto o imagen

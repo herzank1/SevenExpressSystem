@@ -17,7 +17,7 @@ import lombok.EqualsAndHashCode;
 public class AdminOrderSetDelivery extends ApiRequest{
     
     UUID orderId;
-    long deliveryId;
+    String deliveryId;
 
     public AdminOrderSetDelivery() {
         super("");

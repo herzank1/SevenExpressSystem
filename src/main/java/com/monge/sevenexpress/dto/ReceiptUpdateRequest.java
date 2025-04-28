@@ -4,25 +4,15 @@
  */
 package com.monge.sevenexpress.dto;
 
+import com.monge.sevenexpress.entities.PaymentReceipt;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 /**
  *
  * @author DeliveryExpress
  */
 @Data
-@EqualsAndHashCode(callSuper=false)
-@Deprecated
-public class BusinessQuoteRequest extends ApiRequest{
-
-    public BusinessQuoteRequest() {
-        super("quote");
-    }
-    
-    
-    
-    private String address;
-    private String position;
-
+public class ReceiptUpdateRequest {
+    private long id;
+    private PaymentReceipt.PaymentStatus status;
 }

@@ -16,11 +16,11 @@ import org.springframework.context.ApplicationEvent;
  */
 @Data
 @EqualsAndHashCode(callSuper=false)
-public class OnPaymentReceivedFromBusiness extends ApplicationEvent {
+public class OnPaymentReceivedFromBusinessEvent extends ApplicationEvent {
 
     private final Business business;
 
-    public OnPaymentReceivedFromBusiness(Object source, Business business) {
+    public OnPaymentReceivedFromBusinessEvent(Object source, Business business) {
         super(source);
         this.business = business;
     }

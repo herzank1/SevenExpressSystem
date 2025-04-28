@@ -14,25 +14,21 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Data
-public class BusinessService implements ServiceCacheable<Business, Long> {
+public class BusinessService implements ServiceCacheable<Business, String> {
 
     @Autowired
     private final BusinessRepository businessRepository;
 
-
     @Autowired
     private final BusinessContractService businessContractService;
 
-
     // Caché de negocios indexado por ID
-    private final Map<Long, Business> businessCache = new ConcurrentHashMap<>();
-
-
+    private final Map<String, Business> businessCache = new ConcurrentHashMap<>();
 
     /**
      * Obtiene un Business por su ID, primero en caché.
      */
-    public Business getById(long id) {
+    public Business getById(String id) {
         // Buscar en caché
         if (getCache().containsKey(id)) {
             return getCache().get(id);
@@ -50,6 +46,11 @@ public class BusinessService implements ServiceCacheable<Business, Long> {
      * Guarda un Business en la base de datos y lo almacena en caché.
      */
     public Business save(Business business) {
+        if (business.getId() == null || business.getId().isEmpty()) {
+            String generatedId =  generateId();
+            business.setId(generatedId);
+        }
+
         Business savedBusiness = businessRepository.save(business);
         if (savedBusiness != null) {
             cacheEntity(savedBusiness.getId(), savedBusiness);
@@ -58,10 +59,12 @@ public class BusinessService implements ServiceCacheable<Business, Long> {
     }
 
     @Override
-    public Map<Long, Business> getCache() {
+    public Map<String, Business> getCache() {
         return businessCache;
     }
 
-   
+    private String generateId() {
+        return "B-" + businessRepository.count();
+    }
 
 }

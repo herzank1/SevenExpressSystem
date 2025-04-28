@@ -4,60 +4,100 @@
  */
 package com.monge.sevenexpress.entities;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.monge.sevenexpress.utils.StringListConverter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Transient;
-import java.util.ArrayList;
-import lombok.Data;
 
-/**
- *
- * @author DeliveryExpress
- */
-@Data
+import com.monge.sevenexpress.entities.User.Role;
+import com.monge.sevenexpress.utils.StringListConverter;
+import jakarta.persistence.*;
+import java.util.ArrayList;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
-public class Delivery {
+@Table(name = "deliveries")
+public class Delivery implements UserProfile {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
+
     private String name;
     private String address;
     private String phoneNumber;
+
     @Transient
-    private String position;//GPS
+    private String position; // GPS
+
     @Transient
     private boolean conected;
-    /*variable remporal para el acceso por userName al map de deliveries*/
+
     @Transient
-    private String userName;
+    private String userName; // para acceso rápido
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "balance_account_id", referencedColumnName = "id") // Clave foránea
-    private BalanceAccount balanceAccount;
-    
+    @JoinColumn(name = "balance_account_id", referencedColumnName = "id")
+    private BalanceAccount balanceAccount = new BalanceAccount(); // inicializado
+
     @Convert(converter = StringListConverter.class)
     private ArrayList<String> tags;
-    
-    /*variable para registra la ultima vez que se le asigno una orden y hacer un sort en el array*/
+
     @Transient
-    long lastOrderAsignedTimeStamp;
-    
-    private Business.AccountStatus accountStatus;
+    private long lastOrderAsignedTimeStamp;
 
-    public Delivery() {
-        this.accountStatus = Business.AccountStatus.ACTIVADO;
-         this.balanceAccount = new BalanceAccount();
+    private AccountStatus accountStatus = AccountStatus.DESACTIVADO;
+
+    // Métodos de la interfaz UserProfile
+    @Override
+    public String getId() {
+        return id;
     }
-    
-    
 
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String getAddress() {
+        return address;
+    }
+
+    @Override
+    public String getPhone() {
+        return phoneNumber;
+    }
+
+    @Override
+    public Role getType() {
+        return Role.DELIVERY;
+    }
+
+    @Override
+    public AccountStatus getStatus() {
+        return accountStatus;
+    }
+
+    @Override
+    public BalanceAccount getBalanceAccount() {
+        return balanceAccount;
+    }
+
+    @Override
+    public void setPhone(String phone) {
+        this.phoneNumber = phone;
+    }
+
+    @Override
+    public void setStatus(AccountStatus status) {
+        this.accountStatus = status;
+    }
 }

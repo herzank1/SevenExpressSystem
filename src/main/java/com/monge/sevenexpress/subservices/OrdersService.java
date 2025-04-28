@@ -1,14 +1,10 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.monge.sevenexpress.subservices;
 
 import com.monge.sevenexpress.events.OnOrderDeliveredEvent;
-import com.monge.sevenexpress.dto.AdminOrderSetDelivery;
 import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.dto.ChangeOrderStatusRequest;
 import com.monge.sevenexpress.dto.ChangeOrderStatusRequest.UserIndication;
+import com.monge.sevenexpress.dto.DeliveryGetAvailableOrderRequest;
 import com.monge.sevenexpress.dto.DeliveryTakeOrRejectOrder;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.Order;
@@ -17,22 +13,14 @@ import com.monge.sevenexpress.enums.OrderStatus;
 import static com.monge.sevenexpress.enums.OrderStatus.*;
 import static com.monge.sevenexpress.enums.OrderStatus.LISTO;
 import com.monge.sevenexpress.repositories.OrderRepository;
-import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.utils.OrderLogManager;
-
-/**
- *
- * @author DeliveryExpress
- */
+import com.monge.sevenexpress.utils.Position;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -68,7 +56,7 @@ public class OrdersService {
     }
 
     // Función para obtener las órdenes de un negocio por su ID
-    public List<Order> getOrdersByBusinessId(long businessId) {
+    public List<Order> getOrdersByBusinessId(String businessId) {
         return new ArrayList<>(currentOrders.values().stream()
                 .filter(order -> order.getBusiness() != null && order.getBusiness().getId().equals(businessId))
                 //.filter(order -> !order.getStatus().equals(OrderStatus.ENTREGADO) && !order.getStatus().equals(OrderStatus.CANCELADO))
@@ -76,14 +64,14 @@ public class OrdersService {
     }
 
 // Función para obtener las órdenes de un cliente por su ID
-    public List<Order> getOrdersByCustomerId(long customerId) {
+    public List<Order> getOrdersByCustomerId(String customerId) {
         return new ArrayList<>(currentOrders.values().stream()
                 .filter(order -> order.getCustomer() != null && order.getCustomer().getId().equals(customerId))
                 .collect(Collectors.toList()));
     }
 
 // Función para obtener las órdenes de un delivery por su ID
-    public List<Order> getOrdersByDeliveryId(long deliveryId) {
+    public List<Order> getOrdersByDeliveryId(String deliveryId) {
         return new ArrayList<>(currentOrders.values().stream()
                 .filter(order -> order.getDelivery() != null && order.getDelivery().getId().equals(deliveryId))
                 .collect(Collectors.toList()));
@@ -196,6 +184,8 @@ public class OrdersService {
                     return true;
 
                 case EN_CAMINO:
+
+                    return true;
                 case ENTREGADO:
                     executePostOrderDelivered(order);
                     // Mover persistencia y remoción fuera del bloque sincronizado
@@ -204,6 +194,7 @@ public class OrdersService {
                     return true;
 
                 case CANCELADO:
+                    // executePostCancelDelivered(order);
                     persistAndRemoveOrder(order);
                     return true;
 
@@ -229,31 +220,56 @@ public class OrdersService {
         applicationEventPublisher.publishEvent(event);
     }
 
-public ApiResponse takerOrRejectOrderByDelivery(DeliveryTakeOrRejectOrder dtoro) {
-    Order order = getOrderById(dtoro.getOrderId());
-    if (order == null) {
-        return ApiResponse.error("Esta orden no existe!");
-    }
+    /**
+     * *
+     * Acepta o rechaza una orden por un repartidor
+     *
+     * @param delivery repartidor que llama el metodo
+     * @param dtoro Dto de parametros para el metodo
+     * @return
+     */
+    public ApiResponse takerOrRejectOrderByDelivery(Delivery delivery, DeliveryTakeOrRejectOrder dtoro) {
+        Order order = getOrderById(dtoro.getOrderId());
+        if (order == null) {
+            return ApiResponse.error("Esta orden no existe!");
+        }
 
-    synchronized(order) {  // Bloqueamos esta orden específica
-        /*verificar repartidor*/
-        if (order.getDelivery() != null && order.getDelivery().getId().equals(dtoro.getRequesterId())) {
+        synchronized (order) {  // Bloqueamos esta orden específica
+            /*verificar repartidor, si es nullo o si es el repartidor asignado podra tomar o rechazar la orden*/
+            if (order.getDelivery() == null || order.getDelivery().getId().equals(dtoro.getRequesterId())) {
 
-            OrderLogManager.addLog(order.getOrderLog(), dtoro);
+                OrderLogManager.addLog(order.getOrderLog(), dtoro);
 
-            if (dtoro.isTake()) {
-                order.getAsignationCountDown().take();
-                return ApiResponse.success("Repartidor ha tomado la orden", order);
-            } else {
-                order.getAsignationCountDown().reject();
-                return ApiResponse.success("Repartidor ha rechazado la orden", order);
+                if (dtoro.isTake()) {
+                    order.setDelivery(delivery);
+                    order.getAsignationCountDown().take();
+                    return ApiResponse.success("Repartidor ha tomado la orden", order);
+                } else {
+                    order.getAsignationCountDown().reject();
+                    return ApiResponse.success("Repartidor ha rechazado la orden", order);
+                }
             }
         }
+
+        return ApiResponse.error("No se pudo tomar esta orden.");
     }
 
-    return ApiResponse.error("No se pudo tomar esta orden.");
-}
+    public List<Order> getAvailableOrders(DeliveryGetAvailableOrderRequest params) {
+        try {
+            Position deliveryPosition = new Position(params.getPosition());
 
-   
+            return currentOrders.values().stream()
+                    .filter(order -> order.getDelivery() == null)
+                    .filter(order -> {
+                        Position orderPosition = new Position(order.getPosition());
+                        double distance = deliveryPosition.calculateDistance(orderPosition);
+                        return distance <= params.getMaxRatioKm();
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error obteniendo órdenes disponibles", e);
+        }
+    }
 
 }

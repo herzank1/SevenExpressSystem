@@ -11,11 +11,14 @@ import java.util.Map;
  * @author DeliveryExpress
  */
 public interface ServiceCacheable<T, ID> {
-    
+
     Map<ID, T> getCache(); // Método para obtener la caché
 
     default void cacheEntity(ID id, T entity) {
-        getCache().put(id, entity);
+        if (entity != null) {
+            getCache().put(id, entity);
+        }
+
     }
 
     default void removeFromCache(ID id) {

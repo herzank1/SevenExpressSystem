@@ -11,7 +11,7 @@ import com.monge.sevenexpress.entities.Customer;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.User;
 import com.monge.sevenexpress.entities.User.Role;
-import com.monge.sevenexpress.events.OnPaymentReceivedFromBusiness;
+import com.monge.sevenexpress.entities.UserProfile;
 
 import com.monge.sevenexpress.repositories.UserRepository;
 import com.monge.sevenexpress.subservices.AdminService;
@@ -19,11 +19,16 @@ import com.monge.sevenexpress.subservices.BusinessService;
 import com.monge.sevenexpress.subservices.CustomerService;
 import com.monge.sevenexpress.subservices.DeliveryService;
 import com.monge.sevenexpress.subservices.ServiceCacheable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +36,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -55,6 +61,54 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
     @Autowired
     private AdminService adminService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void checkRootAdmin() {
+        Logger logger = LoggerFactory.getLogger(getClass());
+        logger.info("Verificando existencia de Admin principal ROOT...");
+
+        User root = userRepository.findByUserName("root").orElse(null);
+        if (root == null) {
+            Scanner scanner = new Scanner(System.in);
+            String password = "";
+            while (true) {
+                logger.info("Ingrese un password para el usuario root: ");
+                String pass1 = scanner.nextLine();
+                logger.info("Confirme el password: ");
+                String pass2 = scanner.nextLine();
+
+                if (pass1.equals(pass2)) {
+                    password = pass1;
+                    break;
+                } else {
+                    logger.error("❌ Los passwords no coinciden. Intente de nuevo.");
+                }
+            }
+
+            root = new User();
+            root.setUserName("root");
+            root.setPassword(passwordEncoder.encode(password));
+            root.setActive(true);
+            root.setRole(Role.ADMIN);
+
+            Admin admin = new Admin();
+            admin.setName("root");
+            admin.setAddress("");
+            admin.setPhoneNumber("");
+            admin.setStatus(UserProfile.AccountStatus.ACTIVADO);
+            ArrayList<String> tags = new ArrayList<>();
+            tags.add("ROOT");
+            admin.setTags(tags);
+            admin.setBalanceAccount(null);
+            admin = adminService.save(admin);
+            root.setAccountId(admin.getId());
+            userRepository.save(root);
+
+            logger.info("✅ Usuario root creado exitosamente.");
+        }
+    }
 
     // Caché de usuarios indexado por username
     private final Map<Long, User> usersCache = new ConcurrentHashMap<>();
@@ -65,8 +119,11 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
     /**
      * Busca un usuario por su id.
+     *
+     * @param id
+     * @return
      */
-    public User findById(long id) {
+    public User findById(Long id) {
         // Buscar en caché
         if (getCache().containsKey(id)) {
             return getCache().get(id);
@@ -102,7 +159,7 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
     /**
      * Busca un usuario por `accountId`, iterando sobre el caché.
      */
-    public User findByAccountId(Long accountId) {
+    public User findByAccountId(String accountId) {
         // Buscar en caché iterando sobre el Map
         for (User user : getCache().values()) {
             if (user.getAccountId().equals(accountId)) {
@@ -131,13 +188,16 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userRepository.findByUserName(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+        User findByUserName = findByUserName(username);
+        if (findByUserName == null) {
+            throw new UsernameNotFoundException("Usuario no encontrado");
+        }
 
+        return findByUserName;
     }
 
     public String getUserNameOf(Object entity) {
-        Long id = null;
+        String id = null;
 
         if (entity instanceof Admin) {
             id = ((Admin) entity).getId();
@@ -270,7 +330,7 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
     }
 
-    @Scheduled(fixedRate = 3600000) // Ejecuta cada 1 hora (en milisegundos)
+    @Scheduled(fixedRate = 900000) // 15 minutos en milisegundos
     public void cacheCleaner() {
         long now = System.currentTimeMillis();
         clearCache();

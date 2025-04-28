@@ -4,8 +4,8 @@
  */
 package com.monge.sevenexpress.entities;
 
-import com.monge.sevenexpress.utils.OrderLogManager;
 import com.monge.sevenexpress.dto.NewOrderRequest;
+import com.monge.sevenexpress.dto.NewTestOrderRequest;
 import com.monge.sevenexpress.entities.dto.QuoteDTO;
 import com.monge.sevenexpress.enums.OrderStatus;
 import com.monge.sevenexpress.enums.OrderType;
@@ -32,13 +32,12 @@ import lombok.Data;
 
 /**
  *
- * @author DeliveryExpress
+ * @author Diego Villarreal Esta clase representa una orden/pedido/entrega
  */
 @Data
 @Entity
 @Table(name = "orders")  // Cambia el nombre de la tabla a "orders"
 public class Order {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -49,6 +48,7 @@ public class Order {
 
     private OrderStatus status;
     private OrderType orderType;
+    /*El tiempo de preparacion es en minutos*/
     private int preparationTime;
 
     @ManyToOne
@@ -63,7 +63,6 @@ public class Order {
     @JoinColumn(name = "delivery_id", referencedColumnName = "id")
     private Delivery delivery;
 
-    
     private String customerNote;
 
     private float orderCost;
@@ -71,24 +70,25 @@ public class Order {
 
     @Convert(converter = StringListConverter.class)
     private ArrayList<String> orderLog;
-    
+
     @Transient
     private boolean arrivedToBusiness;
-    
+
     /*indicadores para ordenes a credito o fiadas
     el repartidor no cuenta con el monto suficiente para pagar la orden al restaurante*/
     @Transient
     private boolean credit_delivery_confirmation;
     @Transient
     private boolean credit_business_confirmation;
-    
+
     /*true si el negocio indico que el cliente ya pago al restaurante y el repartidor no debe combrar*/
     @Transient
     private boolean payed_by_customer;
-    
+
+    /*Objeto de cotizacion*/
     @Transient
     private QuoteDTO quoteDTO;
-    
+
     @Transient
     AsignationCountDown asignationCountDown;
 
@@ -113,9 +113,30 @@ public class Order {
         this.setOrderCost(newOrder.getOrderCost());
         this.setDeliveryCost(newOrder.getDeliveryCost());
         this.setPreparationTime(newOrder.getPreparationTime());
-         this.orderLog = new ArrayList<String>();
-         this.asignationCountDown = new AsignationCountDown(this);
+        this.orderLog = new ArrayList<String>();
+        this.asignationCountDown = new AsignationCountDown(this);
 
+    }
+
+    public Order(Business business, Customer customer, NewTestOrderRequest newOrder) {
+
+        this.id = UUID.randomUUID();
+        this.creationDate = new SimpleDateFormat(dateFormat).format(new Date());  // Formatear correctamente
+
+        this.status = OrderStatus.PREPARANDO;
+        this.setCustomer(customer);
+        this.setBusiness(business);
+        this.setCustomerNote(newOrder.getCustomerNote());
+        this.setOrderCost(newOrder.getOrderCost());
+        this.setDeliveryCost(newOrder.getDeliveryCost());
+        this.setPreparationTime(newOrder.getPreparationTime());
+        this.orderLog = new ArrayList<String>();
+        this.asignationCountDown = new AsignationCountDown(this);
+
+    }
+
+    public String getPosition() {
+        return this.business.getPosition();
     }
 
     public float getTotal() {
@@ -153,7 +174,5 @@ public class Order {
         long minutesLeft = ChronoUnit.MINUTES.between(LocalDateTime.now(), readyTime);
         return minutesLeft > 0 && minutesLeft <= 10;
     }
-
-  
 
 }

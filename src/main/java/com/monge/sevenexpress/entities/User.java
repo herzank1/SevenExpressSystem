@@ -20,7 +20,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  *
- * @author DeliveryExpress
+ * @author Diego Villarreal
+ * Esta clase representa un Usuario
  */
 @Data
 @Entity
@@ -34,7 +35,7 @@ public class User implements UserDetails {
     private String userName;
     private String password;
     
-    private Long accountId; //DELIVERY BUSINESS, CUSTOMER, ADMIN id's
+    private String accountId; //DELIVERY BUSINESS, CUSTOMER, ADMIN id's
 
     @Enumerated(EnumType.STRING)
     private Role role; // DELIVERY BUSINESS, CUSTOMER, ADMIN

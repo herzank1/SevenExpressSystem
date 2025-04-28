@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.monge.sevenexpress.services;
 
 import com.monge.sevenexpress.dto.AdminOrderSetDelivery;
@@ -34,15 +30,17 @@ import org.springframework.stereotype.Service;
 @Data
 @Service
 public class OrdersControlService {
-     private final ReentrantLock assignLock = new ReentrantLock(); // 🔒 Bloqueo para evitar colisiones
 
+    private final ReentrantLock assignLock = new ReentrantLock(); // 🔒 Bloqueo para evitar colisiones
 
     private final OrdersService ordersService;
     private final DeliveryService deliveryService;
     private final GoogleMapsService googleMapsService;
 
     private final int MAX_ORDER_PER_DELIVERY = 2;
-    private final double MAX_DISTANCE_FOR_PICKUP = 4;
+    private final double MAX_DISTANCE_FOR_PICKUP = 6;
+
+    private volatile boolean atmAsignatorEnabled = false; // Empezar activado
 
     @Autowired
     public OrdersControlService(OrdersService ordersService, DeliveryService deliveryService,
@@ -53,8 +51,12 @@ public class OrdersControlService {
 
     }
 
-   @Scheduled(fixedRate = 15000) // Se ejecuta cada 15 segundos
+    @Scheduled(fixedRate = 15000) // Se ejecuta cada 15 segundos
     private void startAtmAsignator() {
+        if (!atmAsignatorEnabled) {
+            return; // Si no está habilitado, simplemente no hace nada
+        }
+
         assignLock.lock(); // 🔒 Bloquear mientras se asignan pedidos
         try {
             ArrayList<Order> availables = ordersService
@@ -64,23 +66,32 @@ public class OrdersControlService {
                     .filter(c -> c.getDelivery() == null)
                     .collect(Collectors.toCollection(ArrayList::new));
 
-            if (availables.isEmpty()) return;
+            // LoggerUtils.printInfo("Ordenes en curso: " + availables.size());
+            if (availables.isEmpty()) {
+                return;
+            }
 
             ArrayList<Delivery> conectedDeliveries = deliveryService.getConectedDeliveries();
             conectedDeliveries = sortDeliveriesByLastOrderReceived(conectedDeliveries);
 
-            if (conectedDeliveries.isEmpty()) return;
+            // LoggerUtils.printInfo("Repartidores en linea " + conectedDeliveries.size());
+            if (conectedDeliveries.isEmpty()) {
+                return;
+            }
 
             for (Delivery delivery : conectedDeliveries) {
                 LoggerUtils.printInfo("Buscando orden para el repartidor " + delivery.getId());
                 int orderCount = ordersService.getDeliveryOrderCount(delivery);
-                
+
                 if (orderCount < MAX_ORDER_PER_DELIVERY) {
                     for (Order order : availables) {
-                        LoggerUtils.printInfo("Revisando orden " + order.getId());
-                        if (calcDistanceKm(order, delivery) <= MAX_DISTANCE_FOR_PICKUP) {
+                        //     LoggerUtils.printInfo("Revisando orden " + order.getId());
+                        double calcDistanceKm = calcDistanceKm(order, delivery);
+                        LoggerUtils.printInfo("Distancia entre repartidor y la orden es de  " + calcDistanceKm + " km");
+
+                        if (calcDistanceKm <= MAX_DISTANCE_FOR_PICKUP) {
                             order.getAsignationCountDown().assign(delivery, true);
-                            LoggerUtils.printInfo("Orden " + order.getId() + " asignada al repartidor " + delivery.getId());
+                            //     LoggerUtils.printInfo("Orden " + order.getId() + " asignada al repartidor " + delivery.getId());
                             break;
                         }
                     }
@@ -135,7 +146,7 @@ public class OrdersControlService {
             if (delivery == null) {
                 return ApiResponse.error("Delivery no encontrado en caché");
             }
-            
+
             boolean assign = ordersService.getOrderById(aosd.getOrderId())
                     .getAsignationCountDown()
                     .assign(delivery, true);

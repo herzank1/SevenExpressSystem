@@ -15,7 +15,7 @@ import java.util.ArrayList;
 @Data
 public class DeliveryDTO {
 
-    private Long id;
+    private String id;
     private String name;
     private String address;
     private String phoneNumber;

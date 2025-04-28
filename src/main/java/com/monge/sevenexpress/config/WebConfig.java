@@ -4,31 +4,70 @@
  */
 package com.monge.sevenexpress.config;
 
-
 /**
  *
  * @author DeliveryExpress
  */
-import org.springframework.context.annotation.Configuration;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.resource.PathResourceResolver;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${app.static.path.business}")
+    @Value("${file.upload-dir}")
+    private String filesPath;
+    
+    @Value("${app.static.paths.home}")
+    private String homePath;
+    
+    @Value("${app.static.paths.business}")
     private String businessPath;
-
-    @Value("${app.static.path.admins}")
+    
+      @Value("${app.static.paths.deliveries}")
+    private String deliveriesPath;
+    
+    @Value("${app.static.paths.admins}")
     private String adminsPath;
 
+ 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // Configuración para recursos de la aplicación
+        registry.addResourceHandler("/home/**")
+               .addResourceLocations(normalizePath(homePath));
+        
         registry.addResourceHandler("/businessApp/**")
-                .addResourceLocations(businessPath);
+               .addResourceLocations(normalizePath(businessPath));
+        
+             registry.addResourceHandler("/deliveries/**")
+               .addResourceLocations(normalizePath(deliveriesPath));
 
         registry.addResourceHandler("/adminsApp/**")
-                .addResourceLocations(adminsPath);
+               .addResourceLocations(normalizePath(adminsPath));
+
+        // Configuración para archivos subidos por usuarios
+        registry.addResourceHandler("/api/v1/files/**")
+               .addResourceLocations(normalizePath(filesPath))
+               .setCachePeriod(3600)
+               .resourceChain(true)
+               .addResolver(new PathResourceResolver());
     }
+
+    private String normalizePath(String path) {
+        // Normaliza rutas de archivos
+        if (path.startsWith("file:")) {
+            return path.endsWith("/") ? path : path + "/";
+        }
+        // Normaliza rutas de classpath
+        if (path.startsWith("classpath:")) {
+            return path.endsWith("/") ? path : path + "/";
+        }
+        // Para rutas relativas
+        return path.endsWith("/") ? path : path + "/";
+    }
+
 }

@@ -5,7 +5,6 @@
 package com.monge.sevenexpress.services;
 
 import com.monge.sevenexpress.subservices.GoogleMapsService;
-import com.monge.sevenexpress.subservices.TokenBlacklistService;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,7 +19,5 @@ public class UtilitiesService {
 
     @Autowired
     private GoogleMapsService googleMapsService;
-    @Autowired
-    private TokenBlacklistService tokenBlacklistService;
 
 }

@@ -33,7 +33,7 @@ public class ApiResponse<T> {
     public static ApiResponse error(String message) {
         return new ApiResponse(Status.error, message, null);
     }
-
+ 
     public static ApiResponse success(String message, Object data) {
         return new ApiResponse(Status.success, message, data);
     }

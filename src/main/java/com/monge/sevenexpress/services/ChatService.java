@@ -10,7 +10,6 @@ import com.monge.sevenexpress.events.OnOrderDeliveredEvent;
 import com.monge.sevenexpress.repositories.MessageRepository;
 import com.monge.sevenexpress.repositories.RoomRepository;
 import com.monge.sevenexpress.subservices.ServiceCacheable;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,64 +24,83 @@ public class ChatService implements ServiceCacheable<Room, UUID> {
 
     private final ConcurrentHashMap<UUID, Room> rooms = new ConcurrentHashMap<>();
 
-    @Autowired
-    private MessageRepository messageRepository;
-
+    //  @Autowired
+    //  private MessageRepository messageRepository;
     @Autowired
     private RoomRepository roomRepository;
 
+    // Crea o devuelve la sala desde caché
     public Room getOrCreateRoom(UUID roomId) {
         return rooms.computeIfAbsent(roomId, id -> new Room(id));
     }
 
+    // Agrega un mensaje a la sala en caché (solo en memoria)
     public void saveMessage(UUID roomId, Message message) {
         Room room = getOrCreateRoom(roomId);
-        room.addMessage(message);
+        synchronized (room) { // sincroniza por Room individual
+            message.setRoom(room); // importante: asignar la relación inversa
+            room.addMessage(message);
+        }
     }
 
-    public List<Message> getChatUpdates(UUID roomId, long user) {
+    // Mensajes actualizados para el usuario
+    public List<Message> getChatUpdates(UUID roomId, String accountId) {
+        Room room = getOrCreateRoom(roomId);
         List<Message> updatedMessages = new ArrayList<>();
 
-        // Obtén o crea la sala de chat
-        Room room = getOrCreateRoom(roomId);
+        synchronized (room) {
+            for (Message message : room.getMessages()) {
+                if (message.getSeentBy().get(accountId) == null) {
+                    message.getSeentBy().put(accountId, false);
+                }
 
-        // Iterar sobre los mensajes de la sala
-        for (Message message : room.getMessages()) {
-            // Verificar si el mensaje ha sido enviado por el usuario y si no ha sido marcado como 'true'
-            if (message.getSeentBy().get(user) == null) {
-                // Cambiar el valor del mapa para el usuario a 'true'
-                message.getSeentBy().put(user, false);
-
+                if (!message.getSeentBy().get(accountId)) {
+                    updatedMessages.add(message);
+                    message.getSeentBy().put(accountId, true);
+                }
             }
-
-            if (!message.getSeentBy().get(user)) {
-                updatedMessages.add(message);
-                message.getSeentBy().put(user, true);
-            }
-
         }
 
-        // Retornar la lista de mensajes actualizados
         return updatedMessages;
     }
 
-    /*el cliente debera llama a esta funcion cuando inice el chat*/
+    // Devuelve todos los mensajes en memoria
     public List<Message> getChat(UUID roomId) {
-
         return getOrCreateRoom(roomId).getMessages();
-
     }
 
+    // Evento que guarda todo y elimina de caché (protegido contra concurrencia)
     @EventListener
     public void executePostOrderDelivered(OnOrderDeliveredEvent event) {
-        Room room = getOrCreateRoom(event.getOrder().getId());
 
-        if (!room.getMessages().isEmpty()) {
-            messageRepository.saveAll(room.getMessages());
-        }
-        roomRepository.save(room);
+        UUID roomId = event.getOrder().getId();
+        System.out.print("executePostOrderDelivered: "+roomId.toString());
+
+        Room cachedRoom = getOrCreateRoom(roomId);
         
-        rooms.remove(event.getOrder().getId());
+
+        try {
+            // Sincronizar por Room individual para evitar condiciones de carrera
+            synchronized (cachedRoom) {
+                // Recargar o crear nueva instancia desde base de datos
+                Room roomFromDB = roomRepository.findById(roomId).orElse(cachedRoom);
+
+                // Asegura que cada mensaje tenga la referencia al Room correcta
+                for (Message msg : cachedRoom.getMessages()) {
+                    msg.setRoom(roomFromDB);
+                }
+
+
+                // Guardar Room y cascadea los mensajes
+                roomRepository.save(roomFromDB);
+
+                // Eliminar de la caché
+                removeFromCache(roomId);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Override

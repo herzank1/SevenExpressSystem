@@ -9,6 +9,7 @@ import lombok.Data;
 
 @Entity
 @Data
+@Table(name = "payment_receipts")
 public class PaymentReceipt {
 
     @Id
@@ -29,8 +30,7 @@ public class PaymentReceipt {
     @Enumerated(EnumType.STRING)
     private PaymentStatus status;
 
-    @Lob
-    private String base64Image;
+    private String imageUrl;
 
     public enum PaymentMethod {
         SPEI, OXXO, OTRO

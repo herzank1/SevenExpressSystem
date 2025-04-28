@@ -4,6 +4,7 @@
  */
 package com.monge.sevenexpress.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.Delivery;
 import com.monge.sevenexpress.entities.User;
@@ -16,7 +17,7 @@ import lombok.Data;
 @Data
 public class ApiRequest {
     
-    private long requesterId; //id del delivery,business,admin establecer en el backend
+    private String requesterId; //id del delivery,business,admin establecer en el backend
     private User.Role requesterType;//BUSINESS, CUSTOMER,DELIVERY,ADMIN establecer en el backend
     private String action;
 
@@ -24,6 +25,13 @@ public class ApiRequest {
         this.action = action;
     }
     
+    @JsonIgnore
+    public void setRequester(User requester) {
+        
+            this.setRequesterId(requester.getAccountId());
+            this.setRequesterType(requester.getRole());
+      
+    }
     
     
     // Setters para Delivery y Business

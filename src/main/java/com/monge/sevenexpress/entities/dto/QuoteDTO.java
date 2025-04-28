@@ -10,7 +10,10 @@ import lombok.Data;
 
 /**
  *
- * @author DeliveryExpress
+ * @author Diego Villarreal
+ * Esta clase representa la cotizacion de un punto a otro
+ * para usar esta clase se debera llamar la funcion fill antes de calc para una recopilacion correcta
+ * de los datos de la cotizacion
  */
 @Data
 public class QuoteDTO {
@@ -27,13 +30,21 @@ public class QuoteDTO {
 
     private float cost;
 
-    
+    /***
+     * obtenemos distancia y tiempo de distanceDetails
+     * @param distanceDetails objeto que contiene la informacion de punto A a punto B de la api de 
+     * google.
+     */
     public void fill(GoogleMapsService.DistanceDetails distanceDetails){
         this.kilometers = distanceDetails.getKilometers();
         this.minutes = distanceDetails.getMinutes();
     
     }
 
+    /***
+     * Realiza el calculo de entrega segun el contrato de un negocio
+     * @param contract el contrato de un negocio
+     */
     public void calc(BusinessContract contract) {
         /*-1 indica que google no pudo calcular, entonces regresamos por defecto 50*/
         if(kilometers==-1||minutes==-1){
