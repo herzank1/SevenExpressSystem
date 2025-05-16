@@ -332,7 +332,6 @@ public class UserService implements UserDetailsService, ServiceCacheable<User, L
 
     @Scheduled(fixedRate = 900000) // 15 minutos en milisegundos
     public void cacheCleaner() {
-        long now = System.currentTimeMillis();
         clearCache();
         businessService.clearCache();
         customerService.clearCache();

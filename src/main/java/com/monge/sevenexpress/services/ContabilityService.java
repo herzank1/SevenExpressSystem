@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Data
 @Service
 public class ContabilityService {
+
+    @Autowired
+    private ChatService chatService;
 
     @Autowired
     private UserService userService;
@@ -60,6 +64,8 @@ public class ContabilityService {
         Transaction createTransaction = transactionService.createTransaction(_to.getId(), amount,
                 reason, Transaction.TransactionType.DEPOSIT);
         balanceAccountService.save(_to);
+
+        chatService.sendMessage(_to.getId().toString(), "Has recibido un deposito!");
         return createTransaction;
     }
 
@@ -77,6 +83,7 @@ public class ContabilityService {
         Transaction createTransaction = transactionService.createTransaction(_to.getId(), amount,
                 reason, Transaction.TransactionType.CHARGE);
         balanceAccountService.save(_to);
+        chatService.sendMessage(_to.getId().toString(), "Se ha hecho un cargo a tu cuenta.");
         return createTransaction;
     }
 
@@ -126,7 +133,7 @@ public class ContabilityService {
 
     @Transactional
     @EventListener
-    protected  boolean executeContractPostOrderDelivered(OnOrderDeliveredEvent event) {
+    protected boolean executeContractPostOrderDelivered(OnOrderDeliveredEvent event) {
 
         Order order = event.getOrder();
 
@@ -174,18 +181,18 @@ public class ContabilityService {
 
     public TransferDTO executeTransferDTO(TransferDTO transaction) {
 
-        BalanceAccount _to = balanceAccountService.findById(transaction.getTo());
+        BalanceAccount _to = balanceAccountService.getById(transaction.getTo());
         if (_to == null) {
             return null;
         }
 
         /*si from no es nullo, por default es un transfer de from to to*/
         if (transaction.getFrom() > 0) {
-            BalanceAccount _from = balanceAccountService.findById(transaction.getFrom());
+            BalanceAccount _from = balanceAccountService.getById(transaction.getFrom());
 
             Transaction transfer = transfer(_from, _to, transaction.getAmount(), transaction.getReason());
             transaction.setId(transfer.getId());
-           
+
             return transaction;
 
         }
@@ -211,12 +218,8 @@ public class ContabilityService {
                 break;
 
         }
-        
-        
 
         return transaction;
-        
-      
 
     }
 
@@ -258,6 +261,7 @@ public class ContabilityService {
                     paymentReceiptService.getPaymentReceiptRepository().save(payment);
 
                     onBusinessPaymentAproved(business);
+                    chatService.sendMessage(balAccount.getId().toString(), "Tu pago se ha confirmado, ya puedes enviar pedidos.");
 
                     success = true;
 
@@ -291,7 +295,7 @@ public class ContabilityService {
     }
 
     @EventListener
-    protected  void executeChargeApiCalls(ChargeApiCallsEvent event) {
+    protected void executeChargeApiCalls(ChargeApiCallsEvent event) {
 
         ConcurrentHashMap<Long, Double> userApiUsage = event.getUserApiUsage();
         Iterator<Map.Entry<Long, Double>> iterator = userApiUsage.entrySet().iterator();
@@ -303,15 +307,21 @@ public class ContabilityService {
 
             Long key = entry.getKey();
             Double value = entry.getValue();
-            BalanceAccount findById = balanceAccountService.findById(key);
+            BalanceAccount findById = balanceAccountService.getById(key);
             if (findById != null) {
                 findById.sub(value);
                 balanceAccountService.save(findById);
-                
+
                 transactionService.createTransaction(key, value, "Miselaneos", Transaction.TransactionType.CHARGE);
             }
 
         }
+
+    }
+
+    @Scheduled(fixedRate = 900000) // 15 minutos en milisegundos
+    public void cacheCleaner() {
+        balanceAccountService.clearCache();
 
     }
 

@@ -6,7 +6,6 @@ import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.entities.dto.SendMessageDTO;
 import com.monge.sevenexpress.services.ChatService;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author Diego Villarreal
  * Controlador para manejar los chat de las ordenes
- * el Chat id es el Order id.
+ * el Chat id es el Order id o cualquier indetificador.
  * 
  */
 @RestController
@@ -54,7 +53,7 @@ public class ChatController {
      * @return un ApiResponse con un list de Message
      */
     @GetMapping("/chat/getChat")
-    public ResponseEntity<ApiResponse> getChat(@RequestParam UUID roomId) {
+    public ResponseEntity<ApiResponse> getChat(@RequestParam String roomId) {
         try {
 
             // Llamamos al servicio para obtener los mensajes desde la fecha proporcionada (o todos los mensajes si 'from' es null)
@@ -73,7 +72,7 @@ public class ChatController {
      * @return un ApiResponse con un list de Message
      */
     @GetMapping("/chat/getChatUpdates")
-    public ResponseEntity<ApiResponse> getChatUpdatesMessages(@RequestParam UUID roomId, @RequestParam String accountId) {
+    public ResponseEntity<ApiResponse> getChatUpdatesMessages(@RequestParam String roomId, @RequestParam String accountId) {
         try {
 
             // Llamamos al servicio para obtener los mensajes desde la fecha proporcionada (o todos los mensajes si 'from' es null)

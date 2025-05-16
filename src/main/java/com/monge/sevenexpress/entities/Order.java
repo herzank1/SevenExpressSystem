@@ -142,6 +142,11 @@ public class Order {
     public float getTotal() {
         return orderCost + deliveryCost;
     }
+    
+    public String getTitle(){
+    
+        return this.id.toString().length()>=5 ?id.toString().substring(id.toString().length() -5).toUpperCase()+" - "+this.customer.getName():this.id.toString().toUpperCase()+" - "+this.customer.getName();
+    }
 
     /**
      * *

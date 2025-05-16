@@ -31,6 +31,8 @@ public class CustomerService implements ServiceCacheable<Customer, String> {
     /**
      * Busca un cliente por número de teléfono, usando caché para mejorar
      * rendimiento.
+     * @param customerPhone
+     * @return 
      */
     public Customer findByPhoneNumber(String customerPhone) {
         // Buscar en caché primero
@@ -52,6 +54,8 @@ public class CustomerService implements ServiceCacheable<Customer, String> {
 
     /**
      * Guarda un cliente en la base de datos y actualiza la caché.
+     * @param customer
+     * @return 
      */
     @Transactional
     public Customer save(Customer customer) {

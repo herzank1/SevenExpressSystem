@@ -324,21 +324,64 @@ public class UsersController {
             return null;
         }
 
+        UserProfile existingProfile;
+
+        // Buscar el perfil existente según el tipo de usuario
         switch (userProfile.getType()) {
             case BUSINESS:
-                return userService.getBusinessService().save((Business) userProfile);
-
+                existingProfile = userService.getBusinessService().getBusinessRepository().findById(userProfile.getId())
+                        .orElseThrow(() -> new RuntimeException("Business no encontrado"));
+                break;
             case DELIVERY:
-                return userService.getDeliveryService().save((Delivery) userProfile);
-
+                existingProfile = userService.getDeliveryService().getDeliveryRepository().findById(userProfile.getId())
+                        .orElseThrow(() -> new RuntimeException("Delivery no encontrado"));
+                break;
             case ADMIN:
-                return userService.getAdminService().save((Admin) userProfile);
-
+                existingProfile = userService.getAdminService().getAdminRepository().findById(userProfile.getId())
+                        .orElseThrow(() -> new RuntimeException("Admin no encontrado"));
+                break;
             case CUSTOMER:
-                return userService.getCustomerService().save((Customer) userProfile);
-
+                existingProfile = userService.getCustomerService().getCustomerRepository().findById(userProfile.getId())
+                        .orElseThrow(() -> new RuntimeException("Customer no encontrado"));
+                break;
             default:
                 throw new IllegalArgumentException("Tipo de usuario no soportado: " + userProfile.getType());
+        }
+
+        // Actualizar solo los campos de UserProfile
+        updateUserProfileFields(userProfile, existingProfile);
+
+        // Guardar el perfil actualizado
+        switch (existingProfile.getType()) {
+            case BUSINESS:
+                return userService.getBusinessService().save((Business) existingProfile);
+            case DELIVERY:
+                return userService.getDeliveryService().save((Delivery) existingProfile);
+            case ADMIN:
+                return userService.getAdminService().save((Admin) existingProfile);
+            case CUSTOMER:
+                return userService.getCustomerService().save((Customer) existingProfile);
+            default:
+                throw new IllegalArgumentException("Tipo de usuario no soportado: " + existingProfile.getType());
+        }
+    }
+
+// Método para actualizar los campos de UserProfile
+    private void updateUserProfileFields(UserProfile source, UserProfile target) {
+        if (source.getName() != null) {
+            target.setName(source.getName());
+        }
+        if (source.getAddress() != null) {
+            target.setAddress(source.getAddress());
+        }
+        if (source.getPhone() != null) {
+            target.setPhone(source.getPhone());
+        }
+        if (source.getStatus() != null) {
+            target.setStatus(source.getStatus());
+        }
+        if (source.getBalanceAccount() != null) {
+            target.setBalanceAccount(source.getBalanceAccount());
         }
     }
 

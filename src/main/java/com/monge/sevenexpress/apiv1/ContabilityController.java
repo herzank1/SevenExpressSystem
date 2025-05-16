@@ -12,6 +12,7 @@ import com.monge.sevenexpress.entities.Transaction;
 import com.monge.sevenexpress.entities.UserProfile;
 import com.monge.sevenexpress.entities.dto.PaymentReceiptDTO;
 import com.monge.sevenexpress.entities.dto.TransferDTO;
+import com.monge.sevenexpress.services.ChatService;
 import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.services.UserService;
 import java.util.ArrayList;
@@ -37,8 +38,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class ContabilityController {
 
-    @Autowired
-    private UserService userService;
 
     @Autowired
     private ContabilityService contabilityService;

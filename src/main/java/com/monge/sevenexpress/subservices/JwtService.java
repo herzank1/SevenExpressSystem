@@ -1,7 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package com.monge.sevenexpress.subservices;
 
 import com.monge.sevenexpress.entities.JwtToken;
@@ -13,10 +10,12 @@ import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.SecretKey;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
+@Data
 public class JwtService implements ServiceCacheable<JwtToken, String> {
 
     private static final SecretKey key = Jwts.SIG.HS256.key().build();
@@ -45,10 +44,9 @@ public class JwtService implements ServiceCacheable<JwtToken, String> {
     }
 
     private JwtToken saveToken(JwtToken token) {
-
+        token = jwtTokenRepository.save(token);
         if (token != null) {
-
-            cacheEntity(token.getToken(), jwtTokenRepository.save(token));
+            cacheEntity(token.getToken(), token);
             return token;
 
         }
@@ -63,16 +61,18 @@ public class JwtService implements ServiceCacheable<JwtToken, String> {
      * @return
      */
     private JwtToken getToken(String token) {
-
-        JwtToken fromCache = getFromCache(token);
-        if (fromCache == null) {
-            fromCache = jwtTokenRepository.findByToken(token).orElse(null);
-
+        
+         if (getCache().containsKey(token)) {
+            return getCache().get(token);
+        }
+                
+        JwtToken jToken = jwtTokenRepository.findByToken(token).orElse(null);
+       
+        if (jToken != null) {
+            cacheEntity(jToken.getToken(), jToken);
         }
 
-        cacheEntity(fromCache.getToken(), fromCache);
-
-        return fromCache;
+        return jToken;
     }
 
     // Método para validar si el token es válido
@@ -125,5 +125,12 @@ public class JwtService implements ServiceCacheable<JwtToken, String> {
     public Map<String, JwtToken> getCache() {
         return tokensCache;
     }
+    
+    public void evictAllByUsernameFromCache(String username) {
+    tokensCache.entrySet().removeIf(entry ->
+        entry.getValue() != null && username.equals(entry.getValue().getUsername())
+    );
+}
+
 
 }

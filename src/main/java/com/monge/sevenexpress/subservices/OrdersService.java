@@ -12,6 +12,7 @@ import com.monge.sevenexpress.entities.User;
 import com.monge.sevenexpress.enums.OrderStatus;
 import static com.monge.sevenexpress.enums.OrderStatus.*;
 import static com.monge.sevenexpress.enums.OrderStatus.LISTO;
+import com.monge.sevenexpress.events.OnOrderCanceledEvent;
 import com.monge.sevenexpress.repositories.OrderRepository;
 import com.monge.sevenexpress.utils.OrderLogManager;
 import com.monge.sevenexpress.utils.Position;
@@ -121,7 +122,7 @@ public class OrdersService {
                 }
 
                 order.setStatus(cosr.getNewStatus());
-                postChangeStatus(order);
+                postChangeStatus(order,cosr);
             }
 
             if (cosr.getIndication() != null) {
@@ -177,7 +178,7 @@ public class OrdersService {
 
     }
 
-    private boolean postChangeStatus(Order order) {
+    private boolean postChangeStatus(Order order,ChangeOrderStatusRequest cosr) {
         synchronized (order) {  // Bloqueamos la orden específica
             switch (order.getStatus()) {
                 case LISTO:
@@ -194,6 +195,7 @@ public class OrdersService {
                     return true;
 
                 case CANCELADO:
+                    executePostOrderCanceled(order,cosr.getRequesterId(),cosr.getNote());
                     // executePostCancelDelivered(order);
                     persistAndRemoveOrder(order);
                     return true;
@@ -217,6 +219,11 @@ public class OrdersService {
 
     public void executePostOrderDelivered(Order order) {
         OnOrderDeliveredEvent event = new OnOrderDeliveredEvent(this, order);
+        applicationEventPublisher.publishEvent(event);
+    }
+
+    public void executePostOrderCanceled(Order order, String canceler, String reason) {
+        OnOrderCanceledEvent event = new OnOrderCanceledEvent(this, order, canceler, reason);
         applicationEventPublisher.publishEvent(event);
     }
 
@@ -268,6 +275,7 @@ public class OrdersService {
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Error obteniendo órdenes disponibles", e);
         }
     }

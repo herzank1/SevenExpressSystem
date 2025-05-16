@@ -115,11 +115,7 @@ public class OrdersControlService {
     NOTA: hacer que lance una excepcion en caso de que alguno no tenga position*/
     private double calcDistanceKm(Order order, Delivery delivery) {
         try {
-            String businessPosition = null;
-            if (order.getBusiness().getPosition() == null) {
-                businessPosition = googleMapsService.addressToPosition(order.getBusiness().getAddress());
-            }
-
+            String businessPosition = order.getBusiness().getPosition();
             String deliveryPosition = delivery.getPosition();
             Position A = new Position(businessPosition);
             Position B = new Position(deliveryPosition);

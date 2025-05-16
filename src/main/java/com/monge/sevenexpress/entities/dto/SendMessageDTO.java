@@ -16,7 +16,7 @@ import lombok.Data;
 @Data
 public class SendMessageDTO {
 
-    private UUID roomId;
+    private String roomId;
 
     private String from;
     private LocalDateTime timestamp; // Fecha y hora de la transacción

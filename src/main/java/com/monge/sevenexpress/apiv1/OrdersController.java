@@ -53,37 +53,56 @@ public class OrdersController {
     @PostMapping("/orders/changeStatus")
     public ResponseEntity<ApiResponse> changeOrderStatus(@RequestBody ChangeOrderStatusRequest cosr) {
 
-        User requester = authController.getAuthenticatedUser();
-
-        cosr.setRequester(requester);
-
-        ApiResponse result = ordersControlService.changeOrderStatus(cosr);
-        return ResponseEntity.ok(result);
-    }
-
-    @PostMapping("/orders/getAvailables")
-    public ResponseEntity<ApiResponse> getMyOrders(@RequestBody DeliveryGetAvailableOrderRequest params) {
-        Delivery anyAuthenticated;
-
         try {
-            // Obtener el usuario autenticado y el tipo de cuenta (Business, Delivery, Admin)
-            anyAuthenticated = authController.getAuthenticatedDelivery();
+            User requester = authController.getAuthenticatedUser();
+
+            cosr.setRequester(requester);
+
+            ApiResponse result = ordersControlService.changeOrderStatus(cosr);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
-            // Si ocurre un error al obtener la cuenta autenticada, se maneja aquí
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(e.getMessage()));
         }
 
-        if (anyAuthenticated == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Account is not authenticated"));
+    }
+
+    @PostMapping("/orders/getAvailables")
+    public ResponseEntity<ApiResponse> getAvailablesOrders(@RequestBody DeliveryGetAvailableOrderRequest params) {
+
+        try {
+            Delivery anyAuthenticated;
+
+            try {
+                // Obtener el usuario autenticado y el tipo de cuenta (Business, Delivery, Admin)
+                anyAuthenticated = authController.getAuthenticatedDelivery();
+            } catch (Exception e) {
+                // Si ocurre un error al obtener la cuenta autenticada, se maneja aquí
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error(e.getMessage()));
+            }
+
+            if (anyAuthenticated == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Account is not authenticated"));
+            }
+
+            if (!anyAuthenticated.isConected()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("No estas conectado!"));
+
+            }
+
+            List<Order> orders = new ArrayList<>();
+
+            orders = ordersControlService.getOrdersService().getAvailableOrders(params);
+
+            // Mapear las órdenes a DTOs y devolver la respuesta
+            return ResponseEntity.ok(ApiResponse.success("success", orders.stream().map(OrderDTO::new).collect(Collectors.toList())));
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
+
         }
 
-        List<Order> orders = new ArrayList<>();
-
-        orders = ordersControlService.getOrdersService().getAvailableOrders(params);
-
-        // Mapear las órdenes a DTOs y devolver la respuesta
-        return ResponseEntity.ok(ApiResponse.success("success", orders.stream().map(OrderDTO::new).collect(Collectors.toList())));
     }
 
     @GetMapping("/orders/current")
@@ -135,35 +154,50 @@ public class OrdersController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(e.getMessage()));
         }
 
-        // Verificar si el Business está activo
-        if (business.getAccountStatus().equals(Business.AccountStatus.DESACTIVADO)
-                || business.getAccountStatus().equals(Business.AccountStatus.SUSPENDIDO)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Estas " + business.getAccountStatus().name() + " no puedes enviar ordenes"));
-        }
+        try {
+            // Verificar si el Business está activo
+            if (business.getAccountStatus().equals(Business.AccountStatus.DESACTIVADO)
+                    || business.getAccountStatus().equals(Business.AccountStatus.SUSPENDIDO)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Estas " + business.getAccountStatus().name() + " no puedes enviar ordenes"));
+            }
 
-        // Buscar al cliente por su número de teléfono
-        Customer customer = userService.getCustomerService().findByPhoneNumber(newOrder.getCustomerPhone());
+            //verificar si busines exdece el limite de deuda
+            if (business.exceedsItsDebt()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Has excedido la deuda, no puedes enviar ordenes."));
 
-        if (customer == null) {
+            }
+
+            // Buscar al cliente por su número de teléfono
+            Customer customer = userService.getCustomerService().findByPhoneNumber(newOrder.getCustomerPhone());
+
+            if (customer == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Cliente no encontrado"));
+            }
+
+            // Crear la nueva orden
+            OrderType orderType = newOrder.getOrderType();
+            Order order = new Order(business, customer, newOrder);
+            order.setOrderType(orderType);
+
+            if (newOrder.getQuoteDTO() != null) {
+                order.setQuoteDTO(newOrder.getQuoteDTO());
+            }
+
+            // Agregar la orden al sistema
+            ordersControlService.addOrder(order);
+
+            // Retornar respuesta con la orden creada
+            return ResponseEntity.ok(ApiResponse.success("Orden creada exitosamente", new OrderDTO(order)));
+        } catch (Exception e) {
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error("Cliente no encontrado"));
+                    .body(ApiResponse.error(e.getMessage()));
+
         }
 
-        // Crear la nueva orden
-        OrderType orderType = newOrder.getOrderType();
-        Order order = new Order(business, customer, newOrder);
-        order.setOrderType(orderType);
-
-        if (newOrder.getQuoteDTO() != null) {
-            order.setQuoteDTO(newOrder.getQuoteDTO());
-        }
-
-        // Agregar la orden al sistema
-        ordersControlService.addOrder(order);
-
-        // Retornar respuesta con la orden creada
-        return ResponseEntity.ok(ApiResponse.success("Orden creada exitosamente", new OrderDTO(order)));
     }
 
     @PostMapping("/orders/newTestOrder")
@@ -236,6 +270,17 @@ public class OrdersController {
         try {
             // Obtener el Delivery autenticado
             delivery = authController.getAuthenticatedDelivery();
+
+            /*veirifcamos si el repartidor puede tomar mas ordenes*/
+            if (dtoro.isTake() && (ordersControlService.getOrdersService().getDeliveryOrderCount(delivery) == ordersControlService.getMAX_ORDER_PER_DELIVERY())) {
+                return ResponseEntity.ok(ApiResponse.error("No puedes tomar mas ordenes!"));
+            }
+
+            if (!delivery.isConected()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("No estas conectado!"));
+
+            }
+
             dtoro.setRequester(delivery);
 
             // Llamar al servicio para tomar o rechazar la orden

@@ -15,9 +15,9 @@ import org.springframework.stereotype.Repository;
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
      // Obtener mensajes de una sala específica a partir de una fecha
-    List<Message> findByRoom_IdAndTimestampAfter(UUID roomId, LocalDateTime fromDate);
+    List<Message> findByRoom_IdAndTimestampAfter(String roomId, LocalDateTime fromDate);
     
     // Obtener todos los mensajes de una sala específica
-    List<Message> findByRoom_Id(UUID roomId);
+    List<Message> findByRoom_Id(String roomId);
 
 }

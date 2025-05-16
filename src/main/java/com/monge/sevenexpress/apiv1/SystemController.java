@@ -60,7 +60,7 @@ public class SystemController {
 
     }
 
-    @PostMapping("/system/atmAsignatorStatus")
+    @GetMapping("/system/atmAsignatorStatus")
     public ResponseEntity<ApiResponse> atmAsignatorStatus() {
         try {
             authController.getAuthenticatedAdmin();

@@ -4,7 +4,6 @@
  */
 package com.monge.sevenexpress.entities;
 
-import com.monge.sevenexpress.entities.UserProfile.AccountStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

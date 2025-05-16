@@ -9,8 +9,11 @@ import com.monge.sevenexpress.dto.AuthRequest;
 import com.monge.sevenexpress.entities.Admin;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.Delivery;
+import com.monge.sevenexpress.entities.JwtToken.TokenStatus;
 import com.monge.sevenexpress.entities.User;
 import com.monge.sevenexpress.entities.User.Role;
+import com.monge.sevenexpress.entities.UserProfile;
+import com.monge.sevenexpress.services.ContabilityService;
 import com.monge.sevenexpress.subservices.JwtService;
 import com.monge.sevenexpress.services.UserService;
 import com.monge.sevenexpress.services.UtilitiesService;
@@ -38,11 +41,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  *
- * @author Diego Villarreal
- * Controlador encargado de manejar las solicitudes de autenticacion, login, register, logout
- * para las diferentes tipos de cuentas DELIVERY, BUSINES, ADMINS, CUSTOMER.
- * Los endopoints no requieren autorizacion solo /logout
- * 
+ * @author Diego Villarreal Controlador encargado de manejar las solicitudes de
+ * autenticacion, login, register, logout para las diferentes tipos de cuentas
+ * DELIVERY, BUSINES, ADMINS, CUSTOMER. Los endopoints no requieren autorizacion
+ * solo /logout
+ *
  */
 @RestController
 @RequestMapping("/api/v1") // Prefijo para todas las rutas
@@ -62,11 +65,13 @@ public class AuthController {
     private UserService userService;
 
     @Autowired
+    private ContabilityService contabilityService;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @PostMapping("/auth/login")
     public ResponseEntity<ApiResponse> login(@RequestBody AuthRequest loginRequest) {
-        
 
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -77,8 +82,6 @@ public class AuthController {
             String username = loginRequest.getUsername();
             User user = userService.findByUserName(username);
 
-            
-
             if (user == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("account not exist!"));
             }
@@ -87,6 +90,9 @@ public class AuthController {
             if (!user.isActive()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Your account is not activated yet."));
             }
+            
+            /*revocamos todos los tokens anteiores para evitar multisession*/
+            revokeAndEvictAllTokensByUsername(username);
 
             // Si la autenticación es exitosa, generamos el JWT
             String token = jwtService.generateToken(authentication.getName(), User.Role.BUSINESS);
@@ -172,7 +178,7 @@ public class AuthController {
 
                     if (!DataValidators.isValidCoordinates(position)) {
                         /*buscamos coordenadas segun google maps api*/
-                        position = utilitiesService.getGoogleMapsService().addressToPosition(address);
+                        position = utilitiesService.getGoogleMapsService().addressToPosition(0,address);
                     }
 
                     business.setPosition(position);
@@ -225,8 +231,8 @@ public class AuthController {
 
     /**
      * *
-     * Endpoint para validar el token de sesion el cliente debera manejar la logica 
-     * necesaria para su loggin
+     * Endpoint para validar el token de sesion el cliente debera manejar la
+     * logica necesaria para su loggin
      *
      * @param authorizationHeader
      * @return
@@ -272,9 +278,9 @@ public class AuthController {
     /**
      * *
      *
-     * @return regresa la cuenta del usuario de tipo
-     * DELIVERY, BUSINES, ADMINS, CUSTOMER dependeido del SecurityContextHolder
-     * 
+     * @return regresa la cuenta del usuario de tipo DELIVERY, BUSINES, ADMINS,
+     * CUSTOMER dependeido del SecurityContextHolder
+     *
      */
     @GetMapping("/auth/account")
     public ResponseEntity<ApiResponse> account() {
@@ -295,13 +301,14 @@ public class AuthController {
 
         if (roles.contains(Role.ADMIN.name())) {
             Admin admin = userService.getAdminByUserName(username);
-            return ResponseEntity.ok(ApiResponse.success("your admin account", admin));
+
+            return ResponseEntity.ok(ApiResponse.success("your admin account", syncBalanceAccount(admin)));
         } else if (roles.contains(Role.BUSINESS.name())) {
             Business business = userService.getBusinessByUserName(username);
-            return ResponseEntity.ok(ApiResponse.success("your business account", business));
+            return ResponseEntity.ok(ApiResponse.success("your business account", syncBalanceAccount(business)));
         } else if (roles.contains(Role.DELIVERY.name())) {
             Delivery delivery = userService.getDeliveryByUserName(username);
-            return ResponseEntity.ok(ApiResponse.success("your delivery account", delivery));
+            return ResponseEntity.ok(ApiResponse.success("your delivery account", syncBalanceAccount(delivery)));
         } else {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Role not authorized or not recognized"));
@@ -366,10 +373,11 @@ public class AuthController {
         return admin;
     }
 
-    /***
-     * 
+    /**
+     * *
+     *No lanza exception si es nullo
      * @return la cuenta autenticada y asociada del usuario
-     * @throws Exception 
+     * @throws Exception
      */
     public Object getAnyAuthenticated() throws Exception {
 
@@ -407,6 +415,18 @@ public class AuthController {
         }
 
         return account; // ¡Retornar la cuenta!
+    }
+
+    public UserProfile syncBalanceAccount(UserProfile profile) {
+        return contabilityService.getBalanceAccountService().syncBalanceAccount(profile);
+
+    }
+
+    public void revokeAndEvictAllTokensByUsername(String username) {
+        // Revocar en base de datos
+        jwtService.getJwtTokenRepository().deleteAllByUsername(username);
+        // Limpiar del caché
+        jwtService.evictAllByUsernameFromCache(username);
     }
 
 }

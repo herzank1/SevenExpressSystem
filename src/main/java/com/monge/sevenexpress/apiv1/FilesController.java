@@ -30,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1/files")
 public class FilesController {
 
+    //-> file:/root/sevenexpress/files/
     @Value("${file.upload-dir}")
     private String baseUploadDir;
 
@@ -78,7 +79,7 @@ public class FilesController {
 
 
     /***
-     * 
+     *   //-> file:/root/sevenexpress/files/
      * @param folder
      * @param filename
      * @return 
@@ -90,7 +91,7 @@ public class FilesController {
     ) {
         try {
             // Normaliza la ruta base (remueve "file:" si existe)
-            String normalizedBaseDir = baseUploadDir.replace("file:/", "");
+            String normalizedBaseDir = baseUploadDir.replace("file:/", "");//-> root/sevenexpress/files/
             
             // Construye la ruta completa al archivo
             Path filePath = Paths.get(normalizedBaseDir, folder, filename).normalize();
@@ -117,7 +118,7 @@ public class FilesController {
                     .body(resource);
 
         } catch (IOException e) {
-            e.printStackTrace();
+         //   e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }

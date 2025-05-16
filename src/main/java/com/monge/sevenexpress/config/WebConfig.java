@@ -18,56 +18,53 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
+    //-> file:/root/sevenexpress/files/
     @Value("${file.upload-dir}")
     private String filesPath;
-    
+
     @Value("${app.static.paths.home}")
     private String homePath;
-    
+
     @Value("${app.static.paths.business}")
     private String businessPath;
-    
-      @Value("${app.static.paths.deliveries}")
+
+    @Value("${app.static.paths.deliveries}")
     private String deliveriesPath;
-    
+
     @Value("${app.static.paths.admins}")
     private String adminsPath;
 
- 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Configuración para recursos de la aplicación
         registry.addResourceHandler("/home/**")
-               .addResourceLocations(normalizePath(homePath));
-        
+                .addResourceLocations(normalizePath(homePath));
+
         registry.addResourceHandler("/businessApp/**")
-               .addResourceLocations(normalizePath(businessPath));
-        
-             registry.addResourceHandler("/deliveries/**")
-               .addResourceLocations(normalizePath(deliveriesPath));
+                .addResourceLocations(normalizePath(businessPath));
+
+        registry.addResourceHandler("/deliveries/**")
+                .addResourceLocations(normalizePath(deliveriesPath));
 
         registry.addResourceHandler("/adminsApp/**")
-               .addResourceLocations(normalizePath(adminsPath));
+                .addResourceLocations(normalizePath(adminsPath));
 
         // Configuración para archivos subidos por usuarios
         registry.addResourceHandler("/api/v1/files/**")
-               .addResourceLocations(normalizePath(filesPath))
-               .setCachePeriod(3600)
-               .resourceChain(true)
-               .addResolver(new PathResourceResolver());
+                .addResourceLocations(normalizePath(filesPath))
+                .setCachePeriod(3600)
+                .resourceChain(true)
+                .addResolver(new PathResourceResolver());
     }
 
     private String normalizePath(String path) {
-        // Normaliza rutas de archivos
-        if (path.startsWith("file:")) {
+        if (path.startsWith("file:") || path.startsWith("classpath:")) {
             return path.endsWith("/") ? path : path + "/";
         }
-        // Normaliza rutas de classpath
-        if (path.startsWith("classpath:")) {
-            return path.endsWith("/") ? path : path + "/";
+        if (!path.endsWith("/")) {
+            path += "/";
         }
-        // Para rutas relativas
-        return path.endsWith("/") ? path : path + "/";
+        return "file:" + path; // agrega "file:" si falta
     }
 
 }

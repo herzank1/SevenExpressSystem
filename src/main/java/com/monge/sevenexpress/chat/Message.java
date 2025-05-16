@@ -49,7 +49,9 @@ public class Message {
     private MessageType type;  // Tipo de mensaje (texto o imagen)
 
     // Constructor vacío requerido por JPA
-    public Message() {
+    public Message() {  
+        this.timestamp = LocalDateTime.now();  // La fecha y hora se establece automáticamente
+        this.type = MessageType.TEXT;
     }
 
     /*map temporal para menejar actualizaciones*/

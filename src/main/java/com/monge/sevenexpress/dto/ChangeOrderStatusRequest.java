@@ -24,7 +24,7 @@ public class ChangeOrderStatusRequest extends ApiRequest {
     OrderStatus newStatus;
     UserIndication indication;
     String position; //only Delivery
-    String note;
+    String note;//en caso de cancelarion indicar reason
 
     public ChangeOrderStatusRequest() {
         super("changeOrderStatus");

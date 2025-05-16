@@ -8,16 +8,12 @@ import com.monge.sevenexpress.dto.ApiResponse;
 import com.monge.sevenexpress.entities.Business;
 import com.monge.sevenexpress.entities.UserProfile;
 import com.monge.sevenexpress.entities.dto.QuoteDTO;
-import com.monge.sevenexpress.events.ChargeApiCallsEvent;
 import com.monge.sevenexpress.services.UtilitiesService;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,14 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class UtilsController {
 
-    private final ConcurrentHashMap<Long, Double> userApiUsage = new ConcurrentHashMap<>();
-
-    final double quoteCost = 0.10;
-    final double sugestions = 0.10;//real 0.04811 MXN/call
-    final double geoCoding = 0.20;//real 0.085 MXN/call
-
-    @Autowired
-    private ApplicationEventPublisher eventPublisher;
+  
 
     @Autowired
     private UtilitiesService utilitiesService;
@@ -57,8 +46,8 @@ public class UtilsController {
         try {
             // Usamos el método del authController para obtener el usuario autenticado
             UserProfile anyAuthenticated = (UserProfile) authController.getAnyAuthenticated();
-            List<String> suggestions = utilitiesService.getGoogleMapsService().getSuggestions(input);
-            addConsume(anyAuthenticated.getBalanceAccount().getId(), sugestions);
+            List<String> suggestions = utilitiesService.getGoogleMapsService().getSuggestions(anyAuthenticated.getBalanceAccount().getId(),input);
+         
             return ResponseEntity.ok(ApiResponse.success("Sugerencias", suggestions));
         } catch (Exception e) {
             // Si el usuario no está autenticado, manejamos el error
@@ -73,9 +62,8 @@ public class UtilsController {
         try {
             // Usamos el método del authController para obtener el usuario autenticado
             UserProfile anyAuthenticated = (UserProfile) authController.getAnyAuthenticated();
-            String coordinates = utilitiesService.getGoogleMapsService().addressToPosition(address);
+            String coordinates = utilitiesService.getGoogleMapsService().addressToPosition(anyAuthenticated.getBalanceAccount().getId(),address);
             if (coordinates != null) {
-                addConsume(anyAuthenticated.getBalanceAccount().getId(), geoCoding);
                 return ResponseEntity.ok(ApiResponse.success("Coordenadas", coordinates));
             } else {
                 return ResponseEntity.status(404).body(ApiResponse.error("No se pudo obtener las coordenadas"));
@@ -108,7 +96,6 @@ public class UtilsController {
 
             QuoteDTO calculateDeliveryCost = utilitiesService.getGoogleMapsService().calculateDeliveryCost(quoteDTO, business.getBusinessContract()); // Aquí ya no se necesita 'business'
 
-            addConsume(business.getBalanceAccount().getId(), quoteCost);
             // Regresamos una respuesta exitosa con el costo de la entrega
             return ResponseEntity.ok().body(ApiResponse.success("cotizacion", calculateDeliveryCost));
         } catch (Exception e) {
@@ -117,22 +104,5 @@ public class UtilsController {
         }
     }
 
-    public void addConsume(long userId, double cantidad) {
-        // Si no existe, lo inicializa con 0.0
-        userApiUsage.putIfAbsent(userId, 0.0);
-
-        // Luego le suma la cantidad al valor actual
-        userApiUsage.compute(userId, (id, valorActual) -> valorActual + cantidad);
-    }
-
-    // Ejecutar todos los días a las 10:00 PM
-    @Scheduled(cron = "0 0 22 * * ?")
-    public void runChargeApiCalls() {
-
-        ChargeApiCallsEvent event = new ChargeApiCallsEvent(this, userApiUsage);
-        eventPublisher.publishEvent(event);
-
-        userApiUsage.clear();
-    }
 
 }

@@ -7,39 +7,46 @@ package com.monge.sevenexpress.chat;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Data
 @Entity
 public class Room {
- 
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;  // La clave primaria de tipo UUID
+    private String id;  // La clave primaria de tipo UUID
 
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Message> messages = new ArrayList<>();  // Inicialización de la lista de mensajes
 
-    // Constructor
-    public Room(UUID id) {
+    private LocalDateTime createdAt;  // Fecha de creación del Room
+
+    @Enumerated(EnumType.STRING)
+    private RoomType roomType = RoomType.GROUP;  // Tipo de Room: default GROUP
+
+    // Constructor con id
+    public Room(String id) {
         this.id = id;
+        this.createdAt = LocalDateTime.now();  // Inicializa la fecha cuando se crea
+        this.roomType = RoomType.GROUP;        // Por default es un GROUP
+    }
+
+    // Constructor vacío (requerido por JPA)
+    public Room() {
+        this.createdAt = LocalDateTime.now();
+        this.roomType = RoomType.GROUP;
     }
 
     // Método para agregar un mensaje
@@ -58,6 +65,12 @@ public class Room {
             // Si no hay 'fromDate', retornar todos los mensajes
             return messages;
         }
+    }
+
+    // Enum para RoomType
+    public enum RoomType {
+        GROUP,
+        CHANNEL
     }
 
 }
